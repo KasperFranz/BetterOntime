@@ -53,7 +53,7 @@ public class CommandExec implements CommandExecutor {
 				}
 				if (args[0].equalsIgnoreCase("help")) {
 					sender.sendMessage("Aliases: betterontime, bot, ontime\n"
-							+ "- checks your ontime\n"
+							+ "- shows your statistics\n"
 							+ (sender.hasPermission("betterontime.others") ? "- [name] - checks the player's ontime\n" : "")
 							+ (sender.hasPermission("betterontime.manage") ? "- add [name] [time] - add time to player\n"
 							+ "- cmd - manages commmands\n"
