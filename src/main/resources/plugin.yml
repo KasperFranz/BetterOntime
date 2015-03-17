@@ -1,0 +1,23 @@
+name: BetterOntime
+main: net.kaikk.mc.bot.BetterOntime
+version: 1.0.2
+author: KaiNoMood
+depend: [UUIDProvider]
+
+commands:
+   betterontime:
+      description: BetterOntime command
+      aliases: [ontime,bot]
+   msgraw:
+      description: Send to player a raw private msg
+
+permissions:
+    betterontime.self:
+        description: Users with this permission can check their ontime
+        default: true
+    betterontime.others:
+        description: Users with this permission can check others ontime
+        default: op
+    betterontime.manage:
+        description: OP-level commands
+        default: op
