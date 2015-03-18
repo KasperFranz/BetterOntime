@@ -315,6 +315,30 @@ class DataStore {
 		}
 	}
 	
+	
+	synchronized public ArrayList<Leaderboard> getLeaderboard() {
+		try {
+			this.dbCheck();
+			
+			Statement statement = this.db.createStatement();
+			
+			ResultSet results = statement.executeQuery("SELECT player, SUM(playtime) FROM playtimes GROUP BY player ORDER BY SUM(playtime) DESC LIMIT 10");
+			
+			ArrayList<Leaderboard> leaderboard = new ArrayList<Leaderboard>();
+
+			while(results.next()) {
+				leaderboard.add(new Leaderboard(toUUID(results.getBytes(1)), results.getInt(2)));
+			}
+			
+			return leaderboard;
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
+	
 	public static int daysFromEpoch() {		
 		Calendar start = Calendar.getInstance();
 		Calendar now = Calendar.getInstance();

@@ -10,6 +10,7 @@ This plugin needs a database MySQL.
 - /betterontime | /bot | /ontime - shows your statistics
 - /bot help - shows the help
 - /bot [player] - shows player's statistics
+- /bot leaderboard - shows the leaderboard
 - /bot add [player] [time] - adds playtime to player
 - /bot cmd [list|add|remove] - manages commands run at specified playtime
 - /bot reload - reloads config and database data

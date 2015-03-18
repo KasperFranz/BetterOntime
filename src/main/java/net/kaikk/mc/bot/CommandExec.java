@@ -6,6 +6,7 @@ import java.util.UUID;
 import net.kaikk.mc.uuidprovider.UUIDProvider;
 
 import org.bukkit.ChatColor;
+import org.bukkit.Color;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -55,9 +56,29 @@ public class CommandExec implements CommandExecutor {
 					sender.sendMessage("Aliases: betterontime, bot, ontime\n"
 							+ "- shows your statistics\n"
 							+ (sender.hasPermission("betterontime.others") ? "- [name] - checks the player's playtime\n" : "")
+							+ (sender.hasPermission("betterontime.leaderboard") ? "- shows the leaderboard\n" : "")
 							+ (sender.hasPermission("betterontime.manage") ? "- add [name] [time] - add playtime to player's statistics\n"
 							+ "- cmd - manages commands\n"
 							+ "- reload - reloads data\n" : ""));
+					return true;
+				}
+				
+				if (args[0].equalsIgnoreCase("leaderboard")) {
+					if (!sender.hasPermission("betterontime.leaderboard")) {
+						sender.sendMessage("You're not allowed to run this command.");
+						return false;
+					}
+					
+					ArrayList<Leaderboard> leaderboard = BetterOntime.instance.ds.getLeaderboard();
+					
+					sender.sendMessage(Color.RED + "==------ BetterOntime Leaderboard ------==");
+					
+					int i=1;
+					for (Leaderboard stats : leaderboard) {
+						sender.sendMessage(i+"- "+stats.getName()+": "+timeToString(stats.time));
+						i++;
+					}
+					
 					return true;
 				}
 				
