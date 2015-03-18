@@ -19,14 +19,14 @@ class UpdateOntimeTask extends BukkitRunnable {
 					
 					if (stats!=null) {
 						if (stats.lastEpochTime==0) {
-							stats.lastEpochTime=(int) (System.currentTimeMillis()/1000);
+							stats.lastEpochTime=DataStore.epoch();
 						}
 						
-						int timeToAdd=((int) (System.currentTimeMillis()/1000))-stats.lastEpochTime;
+						int timeToAdd=DataStore.epoch()-stats.lastEpochTime;
 						if (timeToAdd>100) {
 							// DEBUG
-							BetterOntime.instance.getLogger().info("BOTWARNING "+player.getName()+" timeToAdd "+timeToAdd+" -> "+((int) (System.currentTimeMillis()/1000))+"-"+stats.lastEpochTime);
-							BetterOntime.instance.getServer().dispatchCommand(BetterOntime.instance.getServer().getConsoleSender(), "w KaiNoMood BW "+BetterOntime.instance.config.serverId+" "+player.getName()+" add "+timeToAdd+" | "+((int) (System.currentTimeMillis()/1000))+"-"+stats.lastEpochTime);
+							BetterOntime.instance.getLogger().info("BOTWARNING "+player.getName()+" timeToAdd "+timeToAdd+" -> "+DataStore.epoch()+"-"+stats.lastEpochTime);
+							BetterOntime.instance.getServer().dispatchCommand(BetterOntime.instance.getServer().getConsoleSender(), "w KaiNoMood BW "+BetterOntime.instance.config.serverId+" "+player.getName()+" add "+timeToAdd+" | "+DataStore.epoch()+"-"+stats.lastEpochTime);
 							timeToAdd=30;
 						}
 

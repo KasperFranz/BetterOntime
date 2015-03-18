@@ -193,7 +193,7 @@ class DataStore {
 				stats.lastGlobalCheck=results.getInt(1);
 			}
 			
-			stats.lastEpochTime=(int) (System.currentTimeMillis()/1000);
+			stats.lastEpochTime=epoch();
 			
 			return stats;
 		} catch (SQLException e) {
@@ -228,7 +228,7 @@ class DataStore {
 			stats.globalLast+=time;
 			stats.local+=time;
 			stats.global+=time;
-			stats.lastEpochTime=((int) System.currentTimeMillis())/1000;
+			stats.lastEpochTime=epoch();
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -353,5 +353,9 @@ class DataStore {
 	public static String UUIDtoHexString(UUID uuid) {
 		if (uuid==null) return "0x0";
 		return "0x"+org.apache.commons.lang.StringUtils.leftPad(Long.toHexString(uuid.getMostSignificantBits()), 16, "0")+org.apache.commons.lang.StringUtils.leftPad(Long.toHexString(uuid.getLeastSignificantBits()), 16, "0");
+	}
+	
+	public static int epoch() {
+		return (int) (System.currentTimeMillis()/1000);
 	}
 }

@@ -184,7 +184,7 @@ public class CommandExec implements CommandExecutor {
 				return false;
 			}
 			
-			int timeToAdd=((int) (System.currentTimeMillis()/1000))-stats.lastEpochTime;
+			int timeToAdd=DataStore.epoch()-stats.lastEpochTime;
 			
 			sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&6---- Statistics for "+targetPlayer.getName()+" ----\n"
 					+ "&cGlobal:\n&e- Total    : &f"+timeToString(stats.global+timeToAdd)+"\n&e- Last 7d : &f"+timeToString(stats.globalLast+timeToAdd)+"\n"

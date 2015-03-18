@@ -1,6 +1,6 @@
 name: BetterOntime
 main: net.kaikk.mc.bot.BetterOntime
-version: 1.0.3
+version: 1.0.4
 author: KaiNoMood
 depend: [UUIDProvider]
 

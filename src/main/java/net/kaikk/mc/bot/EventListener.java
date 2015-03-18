@@ -30,7 +30,7 @@ public class EventListener implements Listener {
 		PlayerStats stats = BetterOntime.instance.ds.playersStats.remove(uuid);
 		
 		if (stats!=null&&stats.lastEpochTime!=0) {
-			int timeToAdd=((int) (System.currentTimeMillis()/1000))-stats.lastEpochTime;
+			int timeToAdd=DataStore.epoch()-stats.lastEpochTime;
 			//BetterOntime.instance.getLogger().info(event.getPlayer().getName()+" logs out -> time to add: "+timeToAdd);
 			BetterOntime.instance.ds.addTime(uuid, timeToAdd);
 		}
