@@ -54,10 +54,10 @@ public class CommandExec implements CommandExecutor {
 				if (args[0].equalsIgnoreCase("help")) {
 					sender.sendMessage("Aliases: betterontime, bot, ontime\n"
 							+ "- shows your statistics\n"
-							+ (sender.hasPermission("betterontime.others") ? "- [name] - checks the player's ontime\n" : "")
-							+ (sender.hasPermission("betterontime.manage") ? "- add [name] [time] - add time to player\n"
-							+ "- cmd - manages commmands\n"
-							+ "- reload - reloads data (unstable!)\n" : ""));
+							+ (sender.hasPermission("betterontime.others") ? "- [name] - checks the player's playtime\n" : "")
+							+ (sender.hasPermission("betterontime.manage") ? "- add [name] [time] - add playtime to player's statistics\n"
+							+ "- cmd - manages commands\n"
+							+ "- reload - reloads data\n" : ""));
 					return true;
 				}
 				
@@ -163,7 +163,7 @@ public class CommandExec implements CommandExecutor {
 			// Time check
 			OfflinePlayer targetPlayer=player;
 			if (args.length==1) {
-				if (!sender.hasPermission("betterontime.other")) {
+				if (!sender.hasPermission("betterontime.others")) {
 					sender.sendMessage("You're not allowed to run this command.");
 					return false;
 				}

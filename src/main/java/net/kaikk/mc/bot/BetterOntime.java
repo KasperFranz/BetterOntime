@@ -18,10 +18,6 @@ public class BetterOntime extends JavaPlugin {
 	protected Config config;
 	protected DataStore ds;
 	
-	/* FIXME
-	 * su uuid, aggiungere cache mysql (uuid vita massima 37 giorni)
-	 * */
-	
 	public void onEnable() {
 		instance=this;
 		

@@ -228,7 +228,7 @@ class DataStore {
 			stats.globalLast+=time;
 			stats.local+=time;
 			stats.global+=time;
-			stats.lastEpochTime+=time;
+			stats.lastEpochTime=((int) System.currentTimeMillis())/1000;
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

@@ -36,7 +36,7 @@ class UpdateOntimeTask extends BukkitRunnable {
 						
 						boolean executedCommand=false;
 						for(StoredCommand command : BetterOntime.instance.ds.commands) {
-							if (isTimeToRunCommand(command, stats)) {
+							if (isTimeToRunCommand(command, stats) && !player.hasPermission("betterontime.exclude."+command.id) && !player.hasPermission("betterontime.exclude.all")) {
 								String commandToRun=command.command.replace("{p.name}", player.getName()).replace("{p.uuid}", uuid.toString());
 								
 								try {
