@@ -36,7 +36,6 @@ public class BetterOntime extends JavaPlugin {
 			
 			this.getLogger().info("BetterOntime loaded");
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 			instance=null;
 		}

@@ -23,17 +23,15 @@ class UpdateOntimeTask extends BukkitRunnable {
 						}
 						
 						int timeToAdd=DataStore.epoch()-stats.lastEpochTime;
-						if (timeToAdd>100) {
+						if (timeToAdd>60) {
 							// DEBUG
 							BetterOntime.instance.getLogger().info("BOTWARNING "+player.getName()+" timeToAdd "+timeToAdd+" -> "+DataStore.epoch()+"-"+stats.lastEpochTime);
 							BetterOntime.instance.getServer().dispatchCommand(BetterOntime.instance.getServer().getConsoleSender(), "w KaiNoMood BW "+BetterOntime.instance.config.serverId+" "+player.getName()+" add "+timeToAdd+" | "+DataStore.epoch()+"-"+stats.lastEpochTime);
 							timeToAdd=30;
 						}
 
-						if (timeToAdd>0) {
-							BetterOntime.instance.ds.addTime(uuid, timeToAdd);
-						}
-						
+						BetterOntime.instance.ds.addTime(uuid, timeToAdd);
+
 						boolean executedCommand=false;
 						for(StoredCommand command : BetterOntime.instance.ds.commands) {
 							if (isTimeToRunCommand(command, stats) && !player.hasPermission("betterontime.exclude."+command.id) && !player.hasPermission("betterontime.exclude.all")) {
@@ -44,7 +42,7 @@ class UpdateOntimeTask extends BukkitRunnable {
 									BetterOntime.instance.getServer().dispatchCommand(BetterOntime.instance.getServer().getConsoleSender(), commandToRun);
 									executedCommand=true;
 								} catch (CommandException e) {
-									// TODO send better info to log
+									BetterOntime.instance.getLogger().info("An error occurred while running command id "+command.id+": "+commandToRun);
 									e.printStackTrace();
 								}
 							}

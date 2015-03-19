@@ -49,8 +49,7 @@ class DataStore {
 			this.instance.log(Level.SEVERE, "Unable to connect to database.  Check your config file settings.");
 			throw e;
 		}
-		
-		
+
 		try {
 			Statement statement = db.createStatement();
 
@@ -197,7 +196,6 @@ class DataStore {
 			
 			return stats;
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 			return null;
 		}
@@ -230,7 +228,6 @@ class DataStore {
 			stats.global+=time;
 			stats.lastEpochTime=epoch();
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
@@ -251,7 +248,6 @@ class DataStore {
 
 			stats.lastGlobalCheck=time;
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
@@ -270,7 +266,6 @@ class DataStore {
 				return 1;
 			}
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		return 0;
@@ -289,7 +284,6 @@ class DataStore {
 				this.commands.add(command);
 			}
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
@@ -310,35 +304,32 @@ class DataStore {
 				i++;
 			}
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
 	
 	
-	synchronized public ArrayList<Leaderboard> getLeaderboard() {
+	synchronized public Leaderboard[] getLeaderboard() {
 		try {
 			this.dbCheck();
 			
 			Statement statement = this.db.createStatement();
 			
-			ResultSet results = statement.executeQuery("SELECT player, SUM(playtime) FROM playtimes GROUP BY player ORDER BY SUM(playtime) DESC LIMIT 10");
+			ResultSet results = statement.executeQuery("SELECT player, SUM(playtime) FROM playtimes GROUP BY player ORDER BY SUM(playtime) DESC LIMIT 10;");
 			
-			ArrayList<Leaderboard> leaderboard = new ArrayList<Leaderboard>();
-
-			while(results.next()) {
-				leaderboard.add(new Leaderboard(toUUID(results.getBytes(1)), results.getInt(2)));
+			Leaderboard[] leaderboard = new Leaderboard[10];
+			
+			for(int i=0; i<10 && results.next(); i++) {
+				leaderboard[i]=new Leaderboard(toUUID(results.getBytes(1)), results.getInt(2));
 			}
 			
 			return leaderboard;
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		return null;
 	}
-	
-	
+
 	public static int daysFromEpoch() {		
 		Calendar start = Calendar.getInstance();
 		Calendar now = Calendar.getInstance();

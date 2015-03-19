@@ -6,7 +6,6 @@ import java.util.UUID;
 import net.kaikk.mc.uuidprovider.UUIDProvider;
 
 import org.bukkit.ChatColor;
-import org.bukkit.Color;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -56,7 +55,7 @@ public class CommandExec implements CommandExecutor {
 					sender.sendMessage("Aliases: betterontime, bot, ontime\n"
 							+ "- shows your statistics\n"
 							+ (sender.hasPermission("betterontime.others") ? "- [name] - checks the player's playtime\n" : "")
-							+ (sender.hasPermission("betterontime.leaderboard") ? "- shows the leaderboard\n" : "")
+							+ (sender.hasPermission("betterontime.leaderboard") ? "- leaderboard - shows the leaderboard\n" : "")
 							+ (sender.hasPermission("betterontime.manage") ? "- add [name] [time] - add playtime to player's statistics\n"
 							+ "- cmd - manages commands\n"
 							+ "- reload - reloads data\n" : ""));
@@ -69,14 +68,16 @@ public class CommandExec implements CommandExecutor {
 						return false;
 					}
 					
-					ArrayList<Leaderboard> leaderboard = BetterOntime.instance.ds.getLeaderboard();
+					Leaderboard[] leaderboard = BetterOntime.instance.ds.getLeaderboard();
 					
-					sender.sendMessage(Color.RED + "==------ BetterOntime Leaderboard ------==");
+					sender.sendMessage("==------ BetterOntime Leaderboard ------==");
 					
-					int i=1;
-					for (Leaderboard stats : leaderboard) {
-						sender.sendMessage(i+"- "+stats.getName()+": "+timeToString(stats.time));
-						i++;
+					for (int i=0; i<10 && leaderboard[i]!=null; i++) {
+						String name = leaderboard[i].getName();
+						if (name==null && leaderboard[i].uuid!=null) {
+							name=UUIDProvider.retrieveName(leaderboard[i].uuid);
+						}
+						sender.sendMessage((i+1)+"- "+name+": "+timeToString(leaderboard[i].time));
 					}
 					
 					return true;
@@ -245,42 +246,40 @@ public class CommandExec implements CommandExecutor {
 			time*=-1;
 		}
 		
+		// seconds
 		int secs = time % 60;
 		if (secs!=0||time==0) {
 			strs.add(secs+" second"+(secs!=1?"s":""));
 		}
-		
 		if (time<60) {
 			return mergeTimeStrings(strs);
 		}
 		
+		// minutes
 		int tmins = (time-secs) / 60;
 		int mins = tmins % 60;
-		
 		if (mins!=0) {
 			strs.add(mins+" minute"+(mins!=1?"s":""));
 		}
-		
 		if (tmins<60) {
 			return mergeTimeStrings(strs);
 		}
 		
+		// hours
 		int thours = (tmins-mins) / 60;
 		int hours = thours % 24;
-		
 		if (hours!=0) {
 			strs.add(hours+" hour"+(hours!=1?"s":""));
 		}
-		
 		if (thours<24) {
 			return mergeTimeStrings(strs);
 		}
 		
+		// days
 		int tdays = (thours-hours) / 24;
 		int days = tdays % 24;
-		
 		if (days!=0) {
-			strs.add(days+" day"+(days!=1?"s":""));
+			strs.add(tdays+" day"+(tdays!=1?"s":""));
 		}
 		
 		return mergeTimeStrings(strs);
@@ -296,7 +295,7 @@ public class CommandExec implements CommandExecutor {
 	
 	public static Integer stringToTime(String tString) {
 		Integer time;
-		tString=tString.replace(" ", "");
+		tString=tString.replace(" ", "").toLowerCase();
 		
 		try {
 			time=Integer.valueOf(tString);
