@@ -70,16 +70,16 @@ public class CommandExec implements CommandExecutor {
 					
 					Leaderboard[] leaderboard = BetterOntime.instance.ds.getLeaderboard();
 					
-					sender.sendMessage("==------ BetterOntime Leaderboard ------==");
+					sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&6==------ &3BetterOntime Leaderboard &6------=="));
 					
 					for (int i=0; i<10 && leaderboard[i]!=null; i++) {
 						String name = leaderboard[i].getName();
 						if (name==null && leaderboard[i].uuid!=null) {
 							name=UUIDProvider.retrieveName(leaderboard[i].uuid);
 						}
-						sender.sendMessage((i+1)+"- "+name+": "+timeToString(leaderboard[i].time));
+						sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&3"+(i+1)+"- &a"+name+": &2"+timeToString(leaderboard[i].time)));
 					}
-					
+					sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&6==------------------------------------=="));
 					return true;
 				}
 				
@@ -164,7 +164,6 @@ public class CommandExec implements CommandExecutor {
 					}
 					
 					OfflinePlayer targetPlayer=BetterOntime.instance.getServer().getPlayer(args[1]);
-					
 					if (targetPlayer==null) {
 						sender.sendMessage("Invalid player name.");
 						return false;
@@ -277,8 +276,7 @@ public class CommandExec implements CommandExecutor {
 		
 		// days
 		int tdays = (thours-hours) / 24;
-		int days = tdays % 24;
-		if (days!=0) {
+		if (tdays!=0) {
 			strs.add(tdays+" day"+(tdays!=1?"s":""));
 		}
 		
