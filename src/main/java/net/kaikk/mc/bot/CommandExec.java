@@ -79,7 +79,7 @@ public class CommandExec implements CommandExecutor {
 						}
 						sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&3"+(i+1)+"- &a"+name+": &2"+timeToString(leaderboard[i].time)));
 					}
-					sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&6==------------------------------------=="));
+					sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&6==-----------------------------------=="));
 					return true;
 				}
 				
@@ -163,16 +163,19 @@ public class CommandExec implements CommandExecutor {
 						return false;
 					}
 					
+					UUID uuid;
 					OfflinePlayer targetPlayer=BetterOntime.instance.getServer().getPlayer(args[1]);
 					if (targetPlayer==null) {
+						 uuid = UUIDProvider.retrieveUUID(args[1]);
+						
 						sender.sendMessage("Invalid player name.");
 						return false;
-					}
-					
-					UUID uuid = UUIDProvider.get(targetPlayer);
-					if (uuid==null) {
-						sender.sendMessage("Invalid player name.");
-						return false;
+					} else {
+						uuid = UUIDProvider.get(targetPlayer);
+						if (uuid==null) {
+							sender.sendMessage("Invalid player name.");
+							return false;
+						}
 					}
 					
 					BetterOntime.instance.ds.addTime(uuid, time);

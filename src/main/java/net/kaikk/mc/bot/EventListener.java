@@ -27,8 +27,13 @@ public class EventListener implements Listener {
 	public void onPlayerQuit(PlayerQuitEvent event) {
 		UUID uuid=UUIDProvider.get(event.getPlayer());
 		//BetterOntime.instance.getLogger().info(event.getPlayer().getName()+" logs out");
-		PlayerStats stats = BetterOntime.instance.ds.playersStats.remove(uuid);
+		if (uuid==null) {
+			BetterOntime.instance.getLogger().severe(event.getPlayer().getName()+" UUID is null!");
+			return;
+		}
 		
+		PlayerStats stats = BetterOntime.instance.ds.playersStats.remove(uuid);
+
 		if (stats!=null&&stats.lastEpochTime!=0) {
 			int timeToAdd=DataStore.epoch()-stats.lastEpochTime;
 			//BetterOntime.instance.getLogger().info(event.getPlayer().getName()+" logs out -> time to add: "+timeToAdd);
