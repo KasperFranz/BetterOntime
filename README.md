@@ -16,15 +16,16 @@ This plugin needs a database MySQL.
 - /bot reload - reloads config and database data
 - /msgraw [player] [message] - Send a raw message to the specified player. Colors are supported.
 
-##Permissions
-- betterontime.self - check your own statistics (default to all)
-- betterontime.others - check others statistics (default to OPs)
-- betterontime.manage - manage BetterOntime (default to OPs)
-
 ####/bot cmd add
 Syntax: /bot cmd add [time] [repeated] [command...]
 - time : after this amount of timer the command will run
 - repeated : [true|false] if the command is repeated every [time]
 - command : the command to run. Player name: {p.name} - Player UUID: {p.uuid}
+
+##Permissions
+- betterontime.self - check your own statistics (default to all)
+- betterontime.others - check others statistics (default to OPs)
+- betterontime.manage - manage BetterOntime (default to OPs)
+
 
 Please report any issue! Suggestions are well accepted!
