@@ -21,4 +21,10 @@ This plugin needs a database MySQL.
 - betterontime.others - check others statistics (default to OPs)
 - betterontime.manage - manage BetterOntime (default to OPs)
 
+####/bot cmd add
+Syntax: /bot cmd add [time] [repeated] [command...]
+- time : after this amount of timer the command will run
+- repeated : [true|false] if the command is repeated every [time]
+- command : the command to run. Player name: {p.name} - Player UUID: {p.uuid}
+
 Please report any issue! Suggestions are well accepted!
