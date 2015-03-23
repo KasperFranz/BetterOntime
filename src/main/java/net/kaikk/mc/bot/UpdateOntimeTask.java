@@ -39,7 +39,11 @@ class UpdateOntimeTask extends BukkitRunnable {
 								
 								try {
 									BetterOntime.instance.getLogger().info("Run command id "+command.id+": "+commandToRun);
-									BetterOntime.instance.getServer().dispatchCommand(BetterOntime.instance.getServer().getConsoleSender(), commandToRun);
+									String[] commandsToRun = commandToRun.split("@n@");
+									for (String cmdToRun : commandsToRun) {
+										BetterOntime.instance.getServer().dispatchCommand(BetterOntime.instance.getServer().getConsoleSender(), cmdToRun);
+									}
+									
 									executedCommand=true;
 								} catch (CommandException e) {
 									BetterOntime.instance.getLogger().info("An error occurred while running command id "+command.id+": "+commandToRun);
@@ -47,27 +51,30 @@ class UpdateOntimeTask extends BukkitRunnable {
 								}
 							}
 						}
-						
-						if (executedCommand || stats.lastGlobalCheck+600<stats.global) {
+						//BetterOntime.instance.getLogger().info("BOT-DEBUG: setLastExecutedCommand ? - "+(stats.lastGlobalCheck+600)+"<"+stats.global);
+						if (executedCommand) {
 							BetterOntime.instance.ds.setLastExecutedCommand(uuid, stats.global, BetterOntime.instance.config.serverId);
 						} else {
 							stats.lastGlobalCheck=stats.global;
 						}
 					}
 				}
-			}
+			} 
 		}
 	}
 	
 	private boolean isTimeToRunCommand(StoredCommand command, PlayerStats stats) {
 		if (command.repeated) {
+			
+			//BetterOntime.instance.getLogger().info("BOT-DEBUG: repeated2- "+stats.lastGlobalCheck+"<"+stats.global+" - "+stats.lastGlobalCheck+"%"+command.time);
 			if (stats.lastGlobalCheck==0) {
 				return false;
 			}
 			
 			int t = stats.lastGlobalCheck;
-			//BetterOntime.instance.getLogger().info("BOT-DEBUG: repeated- "+t+"<"+stats.global+" - "+t+"%"+command.time);
+			
 			while(t<stats.global) {
+				//BetterOntime.instance.getLogger().info("BOT-DEBUG: repeated3- "+t+"<"+stats.global+" - "+t+"%"+command.time+"(="+(t%command.time)+")"+"==0");
 				if (t%command.time==0) {
 					return true;
 				}

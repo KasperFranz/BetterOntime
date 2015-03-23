@@ -101,7 +101,15 @@ public class CommandExec implements CommandExecutor {
 						}
 						sender.sendMessage(ChatColor.RED + "BetterOntime commands list:");
 						for(StoredCommand command : BetterOntime.instance.ds.commands) {
-							sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&3("+command.id+") "+(command.repeated?"Every ":"At &2")+timeToString(command.time)+"\n &c>&f "+command.command));
+							String msg="&3("+command.id+") "+(command.repeated?"Every ":"At &2")+timeToString(command.time);
+							
+							String[] commandsToRun = command.command.split("@n@");
+							
+							for (String cmdToRun : commandsToRun) {
+								 msg=msg+"\n&c>&f "+cmdToRun;
+							}
+							
+							sender.sendMessage(ChatColor.translateAlternateColorCodes('&', msg));
 						}
 						return true;
 					} else if (args[1].equalsIgnoreCase("add")) {

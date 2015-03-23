@@ -111,7 +111,7 @@ class DataStore {
 			}
 		}
 		
-		results = statement.executeQuery("SELECT id, time, repeated, command FROM commands WHERE server = "+config.serverId+" ORDER BY id");
+		results = statement.executeQuery("SELECT id, time, repeated, command FROM commands WHERE server = "+config.serverId+" OR server = 0 ORDER BY id");
 		while (results.next()) {
 			this.commands.add(new StoredCommand(results.getInt(1), results.getInt(2), results.getBoolean(3), results.getString(4)));
 		}
