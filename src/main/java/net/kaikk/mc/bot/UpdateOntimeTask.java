@@ -48,7 +48,7 @@ class UpdateOntimeTask extends BukkitRunnable {
 							}
 						}
 						
-						if (executedCommand) {
+						if (executedCommand || stats.lastGlobalCheck+600<stats.global) {
 							BetterOntime.instance.ds.setLastExecutedCommand(uuid, stats.global, BetterOntime.instance.config.serverId);
 						} else {
 							stats.lastGlobalCheck=stats.global;
@@ -61,6 +61,10 @@ class UpdateOntimeTask extends BukkitRunnable {
 	
 	private boolean isTimeToRunCommand(StoredCommand command, PlayerStats stats) {
 		if (command.repeated) {
+			if (stats.lastGlobalCheck==0) {
+				return false;
+			}
+			
 			int t = stats.lastGlobalCheck;
 			//BetterOntime.instance.getLogger().info("BOT-DEBUG: repeated- "+t+"<"+stats.global+" - "+t+"%"+command.time);
 			while(t<stats.global) {

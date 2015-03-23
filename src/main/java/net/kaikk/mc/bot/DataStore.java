@@ -206,6 +206,10 @@ class DataStore {
 	}
 	
 	synchronized void addTime(UUID playerId, int time, int server) {
+		addTime(playerId, time, server, daysFromEpoch());
+	}
+	
+	synchronized void addTime(UUID playerId, int time, int server, int day) {
 		if (time<1) { // playtime can't be less than 1
 			return;
 		}
@@ -220,7 +224,7 @@ class DataStore {
 			}
 
 			Statement statement = this.db.createStatement();
-			statement.executeUpdate("INSERT INTO playtimes VALUES ("+UUIDtoHexString(playerId)+", "+server+", "+daysFromEpoch()+", "+time+") ON DUPLICATE KEY UPDATE playtime = playtime+"+time);
+			statement.executeUpdate("INSERT INTO playtimes VALUES ("+UUIDtoHexString(playerId)+", "+server+", "+day+", "+time+") ON DUPLICATE KEY UPDATE playtime = playtime+"+time);
 
 			stats.localLast+=time;
 			stats.globalLast+=time;

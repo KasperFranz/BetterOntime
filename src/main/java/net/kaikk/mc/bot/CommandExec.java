@@ -164,21 +164,19 @@ public class CommandExec implements CommandExecutor {
 					}
 					
 					UUID uuid;
-					OfflinePlayer targetPlayer=BetterOntime.instance.getServer().getPlayer(args[1]);
+					OfflinePlayer targetPlayer=BetterOntime.instance.getServer().getOfflinePlayer(args[1]);
 					if (targetPlayer==null) {
-						 uuid = UUIDProvider.retrieveUUID(args[1]);
-						
-						sender.sendMessage("Invalid player name.");
-						return false;
+						uuid = UUIDProvider.retrieveUUID(args[1]);
 					} else {
 						uuid = UUIDProvider.get(targetPlayer);
-						if (uuid==null) {
-							sender.sendMessage("Invalid player name.");
-							return false;
-						}
 					}
 					
-					BetterOntime.instance.ds.addTime(uuid, time);
+					if (uuid==null) {
+						sender.sendMessage("Invalid player name.");
+						return false;
+					}
+					
+					BetterOntime.instance.ds.addTime(uuid, time, 0, 0);
 					sender.sendMessage("Added "+timeToString(time)+" to "+targetPlayer.getName()+"'s playtime.");
 					return true;
 				}
@@ -186,23 +184,29 @@ public class CommandExec implements CommandExecutor {
 			
 			// Time check
 			OfflinePlayer targetPlayer=player;
+			UUID uuid=null;
 			if (args.length==1) {
 				if (!sender.hasPermission("betterontime.others")) {
 					sender.sendMessage("You're not allowed to run this command.");
 					return false;
 				}
 				targetPlayer=BetterOntime.instance.getServer().getOfflinePlayer(args[0]);
-				
+
 				if (targetPlayer==null) {
-					sender.sendMessage("Player "+args[0]+" not found.");
-					return false;
+					uuid = UUIDProvider.retrieveUUID(args[1]);
 				}
 			} else if (!sender.hasPermission("betterontime.self")) {
 				sender.sendMessage("You're not allowed to run this command.");
 				return false;
 			}
 			
-			PlayerStats stats = BetterOntime.instance.ds.getPlayerStats(targetPlayer);
+			PlayerStats stats=null;
+			if (targetPlayer!=null) {
+				stats = BetterOntime.instance.ds.getPlayerStats(targetPlayer);
+			} else if (uuid!=null) {
+				stats = BetterOntime.instance.ds.retrievePlayerStats(uuid);
+			}
+			
 			if (stats==null || stats.global==0) {
 				sender.sendMessage("No statistics found for this player.");
 				return false;
