@@ -24,7 +24,7 @@ permissions:
     betterontime.manage:
         description: OP-level commands
         default: op
-    betterontime.exclude.*
+    betterontime.exclude.*:
         description: Users with this permission are excluded from that command id
         default: false
         
