@@ -1,3 +1,21 @@
+/*
+    BetterOntime plugin for Minecraft Bukkit server
+    Copyright (C) 2015 Antonino Kai Pocorobba
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 package net.kaikk.mc.bot;
 
 import java.util.UUID;
@@ -23,18 +41,16 @@ class UpdateOntimeTask extends BukkitRunnable {
 						}
 						
 						int timeToAdd=DataStore.epoch()-stats.lastEpochTime;
-						if (timeToAdd>60) {
-							// DEBUG
-							BetterOntime.instance.getLogger().info("BOTWARNING "+player.getName()+" timeToAdd "+timeToAdd+" -> "+DataStore.epoch()+"-"+stats.lastEpochTime);
-							BetterOntime.instance.getServer().dispatchCommand(BetterOntime.instance.getServer().getConsoleSender(), "w KaiNoMood BW "+BetterOntime.instance.config.serverId+" "+player.getName()+" add "+timeToAdd+" | "+DataStore.epoch()+"-"+stats.lastEpochTime);
+						if (timeToAdd>180) {
+							BetterOntime.instance.getLogger().warning(player.getName()+"'s timeToAdd ("+timeToAdd+" seconds) ignored and added just 30 seconds.");
 							timeToAdd=30;
 						}
 
 						BetterOntime.instance.ds.addTime(uuid, timeToAdd);
 
-						boolean executedCommand=false;
+						boolean executedGlobalCommand=false;
 						for(StoredCommand command : BetterOntime.instance.ds.commands) {
-							if (isTimeToRunCommand(command, stats) && !player.hasPermission("betterontime.exclude."+command.id) && !player.hasPermission("betterontime.exclude.all")) {
+							if (isTimeToRunCommand(command, stats) && !player.hasPermission("betterontime.exclude."+command.id)) {
 								String commandToRun=command.command.replace("{p.name}", player.getName()).replace("{p.uuid}", uuid.toString());
 								
 								try {
@@ -43,45 +59,43 @@ class UpdateOntimeTask extends BukkitRunnable {
 									for (String cmdToRun : commandsToRun) {
 										BetterOntime.instance.getServer().dispatchCommand(BetterOntime.instance.getServer().getConsoleSender(), cmdToRun);
 									}
-									
-									executedCommand=true;
+									if (!command.repeated) {
+										executedGlobalCommand=true;
+									}
 								} catch (CommandException e) {
 									BetterOntime.instance.getLogger().info("An error occurred while running command id "+command.id+": "+commandToRun);
 									e.printStackTrace();
 								}
 							}
 						}
-						//BetterOntime.instance.getLogger().info("BOT-DEBUG: setLastExecutedCommand ? - "+(stats.lastGlobalCheck+600)+"<"+stats.global);
-						if (executedCommand) {
+						
+						if (executedGlobalCommand) {
 							BetterOntime.instance.ds.setLastExecutedCommand(uuid, stats.global, BetterOntime.instance.config.serverId);
 						} else {
 							stats.lastGlobalCheck=stats.global;
 						}
+						stats.lastLocalCheck=stats.local;
 					}
 				}
-			} 
+			}
 		}
 	}
 	
 	private boolean isTimeToRunCommand(StoredCommand command, PlayerStats stats) {
 		if (command.repeated) {
-			
-			//BetterOntime.instance.getLogger().info("BOT-DEBUG: repeated2- "+stats.lastGlobalCheck+"<"+stats.global+" - "+stats.lastGlobalCheck+"%"+command.time);
-			if (stats.lastGlobalCheck==0) {
+			if (stats.lastLocalCheck==0) {
 				return false;
 			}
 			
-			int t = stats.lastGlobalCheck;
+			int t = stats.lastLocalCheck;
 			
-			while(t<stats.global) {
-				//BetterOntime.instance.getLogger().info("BOT-DEBUG: repeated3- "+t+"<"+stats.global+" - "+t+"%"+command.time+"(="+(t%command.time)+")"+"==0");
+			while(t<stats.local) {
 				if (t%command.time==0) {
 					return true;
 				}
 				t++;
 			}
 		} else {
-			//BetterOntime.instance.getLogger().info("BOT-DEBUG: one time- "+stats.lastGlobalCheck+"<"+command.time+" && "+command.time+"<"+stats.global);
 			if (stats.lastGlobalCheck<command.time && command.time<stats.global) {
 				return true;
 			}

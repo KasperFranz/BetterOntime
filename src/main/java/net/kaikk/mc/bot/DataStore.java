@@ -1,3 +1,21 @@
+/*
+    BetterOntime plugin for Minecraft Bukkit server
+    Copyright (C) 2015 Antonino Kai Pocorobba
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 package net.kaikk.mc.bot;
 
 import java.sql.Connection;
@@ -12,12 +30,12 @@ import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.logging.Level;
 
 import net.kaikk.mc.uuidprovider.UUIDProvider;
 
 import org.bukkit.OfflinePlayer;
-
 
 class DataStore {
 	private BetterOntime instance;
@@ -25,6 +43,8 @@ class DataStore {
 	private String username;
 	private String password;
 	protected Connection db = null;
+	
+	ConcurrentLinkedQueue<String> dbQueue = new ConcurrentLinkedQueue<String>();
 
 	ConcurrentHashMap<UUID,PlayerStats> playersStats = new ConcurrentHashMap<UUID,PlayerStats>();
 	ArrayList<StoredCommand> commands = new ArrayList<StoredCommand>();
@@ -192,12 +212,27 @@ class DataStore {
 				stats.lastGlobalCheck=results.getInt(1);
 			}
 			
+			stats.lastLocalCheck=stats.local;
+			
 			stats.lastEpochTime=epoch();
 			
 			return stats;
 		} catch (SQLException e) {
 			e.printStackTrace();
 			return null;
+		}
+	}
+	
+	synchronized void setTime(UUID playerId, int time) {
+		try {
+			this.dbCheck();
+
+			Statement statement = this.db.createStatement();
+			statement.executeUpdate("DELETE FROM playtimes WHERE player = "+UUIDtoHexString(playerId));
+			statement.executeUpdate("INSERT INTO playtimes VALUES ("+UUIDtoHexString(playerId)+", 0, 0, "+time+")");
+			this.playersStats.put(playerId, new PlayerStats(0, 0, time, 0, time, 0, epoch()));
+		} catch (SQLException e) {
+			e.printStackTrace();
 		}
 	}
 	
@@ -213,47 +248,32 @@ class DataStore {
 		if (time<1) { // playtime can't be less than 1
 			return;
 		}
-		
-		try {
-			this.dbCheck();
 
-			PlayerStats stats = this.playersStats.get(playerId);
-			if (stats==null) {
-				stats = new PlayerStats();
-				this.playersStats.put(playerId, stats);
-			}
-
-			Statement statement = this.db.createStatement();
-			statement.executeUpdate("INSERT INTO playtimes VALUES ("+UUIDtoHexString(playerId)+", "+server+", "+day+", "+time+") ON DUPLICATE KEY UPDATE playtime = playtime+"+time);
-
-			stats.localLast+=time;
-			stats.globalLast+=time;
-			stats.local+=time;
-			stats.global+=time;
-			stats.lastEpochTime=epoch();
-		} catch (SQLException e) {
-			e.printStackTrace();
+		PlayerStats stats = this.playersStats.get(playerId);
+		if (stats==null) {
+			stats = new PlayerStats();
+			this.playersStats.put(playerId, stats);
 		}
+		
+		this.dbQueue.offer("INSERT INTO playtimes VALUES ("+UUIDtoHexString(playerId)+", "+server+", "+day+", "+time+") ON DUPLICATE KEY UPDATE playtime = playtime+"+time);
+		
+		stats.localLast+=time;
+		stats.globalLast+=time;
+		stats.local+=time;
+		stats.global+=time;
+		stats.lastEpochTime=epoch();
 	}
 	
 	synchronized void setLastExecutedCommand(UUID playerId, int time, int server) {
-		try {
-			this.dbCheck();
-			
-			Statement statement = this.db.createStatement();
-			
-			statement.executeUpdate("INSERT INTO playerinfo VALUES ("+UUIDtoHexString(playerId)+", "+server+", "+time+") ON DUPLICATE KEY UPDATE lastglobalplaytime = "+time);
-			
-			PlayerStats stats = this.playersStats.get(playerId);
-			if (stats==null) {
-				stats = new PlayerStats();
-				this.playersStats.put(playerId, stats);
-			}
-
-			stats.lastGlobalCheck=time;
-		} catch (SQLException e) {
-			e.printStackTrace();
+		this.dbQueue.offer("INSERT INTO playerinfo VALUES ("+UUIDtoHexString(playerId)+", "+server+", "+time+") ON DUPLICATE KEY UPDATE lastglobalplaytime = "+time);
+		
+		PlayerStats stats = this.playersStats.get(playerId);
+		if (stats==null) {
+			stats = new PlayerStats();
+			this.playersStats.put(playerId, stats);
 		}
+
+		stats.lastGlobalCheck=time;
 	}
 	
 	synchronized public int newServer() {

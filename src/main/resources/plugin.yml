@@ -1,6 +1,6 @@
 name: BetterOntime
 main: net.kaikk.mc.bot.BetterOntime
-version: 1.2
+version: 1.3
 author: KaiNoMood
 depend: [UUIDProvider]
 
@@ -24,3 +24,7 @@ permissions:
     betterontime.manage:
         description: OP-level commands
         default: op
+    betterontime.exclude.*
+        description: Users with this permission are excluded from that command id
+        default: false
+        

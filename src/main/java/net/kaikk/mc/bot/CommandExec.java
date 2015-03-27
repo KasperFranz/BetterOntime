@@ -1,3 +1,21 @@
+/*
+    BetterOntime plugin for Minecraft Bukkit server
+    Copyright (C) 2015 Antonino Kai Pocorobba
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 package net.kaikk.mc.bot;
 
 import java.util.ArrayList;
@@ -56,9 +74,11 @@ public class CommandExec implements CommandExecutor {
 							+ "- shows your statistics\n"
 							+ (sender.hasPermission("betterontime.others") ? "- [name] - checks the player's playtime\n" : "")
 							+ (sender.hasPermission("betterontime.leaderboard") ? "- leaderboard - shows the leaderboard\n" : "")
-							+ (sender.hasPermission("betterontime.manage") ? "- add [name] [time] - add playtime to player's statistics\n"
-							+ "- cmd - manages commands\n"
-							+ "- reload - reloads data\n" : ""));
+							+ (sender.hasPermission("betterontime.manage") ? ""
+								+ "- add [name] [time] - add playtime to player's statistics\n"
+								+ "- set [name] [time] - set player's global playtime\n"
+								+ "- cmd - manages commands\n"
+								+ "- reload - reloads data\n" : ""));
 					return true;
 				}
 				
@@ -186,6 +206,42 @@ public class CommandExec implements CommandExecutor {
 					
 					BetterOntime.instance.ds.addTime(uuid, time, 0, 0);
 					sender.sendMessage("Added "+timeToString(time)+" to "+targetPlayer.getName()+"'s playtime.");
+					return true;
+				}
+				
+				
+				if (args[0].equalsIgnoreCase("set")) {
+					if (!sender.hasPermission("betterontime.manage")) {
+						sender.sendMessage("You're not allowed to run this command.");
+						return false;
+					}
+	
+					if (args.length!=3) {
+						sender.sendMessage("Usage: /betterontime set [PlayerName] [time]"); 
+						return false;
+					}
+					
+					Integer time=stringToTime(args[2]);
+					if (time==null||time<1) {
+						sender.sendMessage("Invalid time.");
+						return false;
+					}
+					
+					UUID uuid;
+					OfflinePlayer targetPlayer=BetterOntime.instance.getServer().getOfflinePlayer(args[1]);
+					if (targetPlayer==null) {
+						uuid = UUIDProvider.retrieveUUID(args[1]);
+					} else {
+						uuid = UUIDProvider.get(targetPlayer);
+					}
+					
+					if (uuid==null) {
+						sender.sendMessage("Invalid player name.");
+						return false;
+					}
+					
+					BetterOntime.instance.ds.setTime(uuid, time);
+					sender.sendMessage("Set "+targetPlayer.getName()+"'s playtime to "+timeToString(time));
 					return true;
 				}
 			}

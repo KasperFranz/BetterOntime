@@ -26,6 +26,7 @@ Syntax: /bot cmd add [time] [repeated] [command...]
 - betterontime.self - check your own statistics (default to all)
 - betterontime.others - check others statistics (default to OPs)
 - betterontime.manage - manage BetterOntime (default to OPs)
+- betterontime.exclude.[id] - exclude [id] command for this player
 
 
 Please report any issue! Suggestions are well accepted!
