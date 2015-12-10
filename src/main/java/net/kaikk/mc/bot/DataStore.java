@@ -1,21 +1,3 @@
-/*
-    BetterOntime plugin for Minecraft Bukkit server
-    Copyright (C) 2015 Antonino Kai Pocorobba
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
-
 package net.kaikk.mc.bot;
 
 import java.sql.Connection;
@@ -23,19 +5,27 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.logging.Level;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+
+import org.bukkit.ChatColor;
+import org.bukkit.OfflinePlayer;
+import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitRunnable;
 
 import net.kaikk.mc.uuidprovider.UUIDProvider;
-
-import org.bukkit.OfflinePlayer;
 
 class DataStore {
 	private BetterOntime instance;
@@ -44,36 +34,37 @@ class DataStore {
 	private String password;
 	protected Connection db = null;
 	
-	ConcurrentLinkedQueue<String> dbQueue = new ConcurrentLinkedQueue<String>();
-
-	ConcurrentHashMap<UUID,PlayerStats> playersStats = new ConcurrentHashMap<UUID,PlayerStats>();
-	ArrayList<StoredCommand> commands = new ArrayList<StoredCommand>();
+	private ExecutorService executor = Executors.newSingleThreadExecutor();
 	
-	DataStore(BetterOntime instance, String url, String username, String password) throws Exception {
+	List<StoredCommand> commands = new CopyOnWriteArrayList<StoredCommand>();
+	
+	Map<UUID,PlayerStats> onlinePlayersStats = new ConcurrentHashMap<UUID,PlayerStats>(8, 1f, 1);
+	
+	DataStore(BetterOntime instance) throws Exception {
 		this.instance=instance;
-		this.dbUrl = url;
-		this.username = username;
-		this.password = password;
+		this.dbUrl = "jdbc:mysql://"+instance.config.dbHostname+"/"+instance.config.dbDatabase;
+		this.username = instance.config.dbUsername;
+		this.password = instance.config.dbPassword;
 		
 		try {
 			//load the java driver for mySQL
 			Class.forName("com.mysql.jdbc.Driver");
 		} catch(Exception e) {
-			this.instance.log(Level.SEVERE, "Unable to load Java's mySQL database driver.  Check to make sure you've installed it properly.");
+			this.instance.getLogger().severe("Unable to load Java's mySQL database driver.  Check to make sure you've installed it properly.");
 			throw e;
 		}
 		
 		try {
 			this.dbCheck();
 		} catch(Exception e) {
-			this.instance.log(Level.SEVERE, "Unable to connect to database.  Check your config file settings.");
+			this.instance.getLogger().severe("Unable to connect to database.  Check your config file settings. Details: \n"+e.getMessage());
 			throw e;
 		}
+		
+		Statement statement = db.createStatement();
 
 		try {
-			Statement statement = db.createStatement();
-
-				// Creates tables on the database
+			// Creates tables on the database
 			statement.executeUpdate("CREATE TABLE IF NOT EXISTS commands ("
 					+ "  id int(11) NOT NULL AUTO_INCREMENT,"
 					+ "  server tinyint(4) NOT NULL,"
@@ -97,24 +88,21 @@ class DataStore {
 					+ "  PRIMARY KEY (player,server,day),"
 					+ "  KEY server (server));");
 		} catch(Exception e) {
-			this.instance.log(Level.SEVERE, "Unable to create the necessary database tables. Details:");
+			this.instance.getLogger().severe("Unable to create the necessary database table. Details: \n"+e.getMessage());
 			throw e;
 		}
-
-		Config config = BetterOntime.instance.config;
-		if (config.serverId==0) {
-			config.serverId = this.newServer();
-			config.save();
+		
+		if (instance.config.serverId==0) {
+			instance.config.serverId = this.newServer();
+			instance.getConfig().set("ServerId", instance.config.serverId);
+			instance.saveConfig();
 		}
 		
-		this.dbCheck();
-		
-		Statement statement = this.db.createStatement();
-		ResultSet results = statement.executeQuery("SELECT player, playtime FROM playtimes WHERE server = "+config.serverId+" AND day!=0 AND day < "+(daysFromEpoch()-7));
+		ResultSet results = statement.executeQuery("SELECT player, playtime FROM playtimes WHERE server = "+instance.config.serverId+" AND day!=0 AND day < "+(Utils.daysFromEpoch()-7));
 		
 		HashMap<UUID, Integer> timesToMerge = new HashMap<UUID, Integer>();
 		while (results.next()) {
-			UUID uuid = toUUID(results.getBytes(1));
+			UUID uuid = Utils.toUUID(results.getBytes(1));
 			Integer time = timesToMerge.get(uuid);
 			if (time==null) {
 				time=0;
@@ -123,71 +111,207 @@ class DataStore {
 			timesToMerge.put(uuid, time+results.getInt(2));
 		}
 		
-		statement.executeUpdate("DELETE FROM playtimes WHERE server = "+config.serverId+" AND day!=0 AND day < "+(daysFromEpoch()-7));
+		statement.executeUpdate("DELETE FROM playtimes WHERE server = "+instance.config.serverId+" AND day!=0 AND day < "+(Utils.daysFromEpoch()-7));
 		
 		if (!timesToMerge.isEmpty()) {
 			for (Entry<UUID, Integer> entry : timesToMerge.entrySet()) {
-				statement.executeUpdate("INSERT INTO playtimes VALUES ("+UUIDtoHexString(entry.getKey())+", "+config.serverId+", 0, "+entry.getValue()+") ON DUPLICATE KEY UPDATE playtime=playtime+"+entry.getValue());
+				statement.executeUpdate("INSERT INTO playtimes VALUES ("+Utils.UUIDtoHexString(entry.getKey())+", "+instance.config.serverId+", 0, "+entry.getValue()+") ON DUPLICATE KEY UPDATE playtime=playtime+"+entry.getValue());
 			}
 		}
 		
-		results = statement.executeQuery("SELECT id, time, repeated, command FROM commands WHERE server = "+config.serverId+" OR server = 0 ORDER BY id");
+		results = statement.executeQuery("SELECT id, time, repeated, command FROM commands WHERE server = "+instance.config.serverId+" OR server = 0 ORDER BY id");
 		while (results.next()) {
 			this.commands.add(new StoredCommand(results.getInt(1), results.getInt(2), results.getBoolean(3), results.getString(4)));
 		}
-	}
-	
-	synchronized void dbCheck() throws SQLException {
-		if(this.db == null || this.db.isClosed()) {
-			Properties connectionProps = new Properties();
-			connectionProps.put("user", this.username);
-			connectionProps.put("password", this.password);
-			
-			this.db = DriverManager.getConnection(this.dbUrl, connectionProps); 
-		}
-	}
-	
-	synchronized void dbClose()  {
-		try {
-			if (!this.db.isClosed()) {
-				this.db.close();
-				this.db=null;
+		
+		// Load online players to stats
+		for (Player player : instance.getServer().getOnlinePlayers()) {
+			UUID uuid=UUIDProvider.get(player.getName());
+			if (uuid==null) {
+				instance.getLogger().severe(player+" UUID is null! I'll ignore this player.");
+				continue;
 			}
-		} catch (SQLException e) {
 			
+			PlayerStats stats = instance.ds.getPlayerStatsFromDB(uuid);
+			if (stats!=null) { // retrievePlayerStats returns null if there was a mysql exception... ignore this player in that case.
+				stats.setPlayer(player);
+			}
 		}
 	}
 	
-	synchronized public PlayerStats getPlayerStats(OfflinePlayer player) {
-		UUID uuid = UUIDProvider.get(player);
+	void asyncUpdate(List<String> sql) {
+		String[] arr = new String[(sql.size())];
+		asyncUpdate(sql.toArray(arr));
+	}
+
+	void asyncUpdate(String... sql) {
+		executor.execute(new DatabaseUpdate(sql));
+	}
+	
+	Future<ResultSet> asyncQuery(String sql) {
+		return executor.submit(new DatabaseQuery(sql));
+	}
+	
+	Future<ResultSet> asyncUpdateGenKeys(String sql) {
+		return executor.submit(new DatabaseUpdateGenKeys(sql));
+	}
+	
+	synchronized void update(String... sql) throws SQLException {
+		this.update(this.statement(), sql);
+	}
+	
+	synchronized void update(Statement statement, String... sql) throws SQLException {
+		for (String sqlRow : sql) {
+			statement.executeUpdate(sqlRow);
+		}
+	}
+	
+	synchronized ResultSet query(String sql) throws SQLException {
+		return this.query(this.statement(), sql);
+	}
+	
+	synchronized ResultSet query(Statement statement, String sql) throws SQLException {
+		return statement.executeQuery(sql);
+	}
+	
+	synchronized ResultSet updateGenKeys(String sql) throws SQLException {
+		return this.updateGenKeys(this.statement(), sql);
+	}
+	
+	synchronized ResultSet updateGenKeys(Statement statement, String sql) throws SQLException {
+		statement.executeUpdate(sql, Statement.RETURN_GENERATED_KEYS);
+		return statement.getGeneratedKeys();
+	}
+	
+	void leaderboard(final CommandSender sender) {
+		final Future<ResultSet> futureResult = instance.ds.asyncQuery("SELECT player, SUM(playtime) FROM playtimes GROUP BY player ORDER BY SUM(playtime) DESC LIMIT 10;");
+		executor.execute(new Runnable() {
+			@Override
+			public void run() {
+				// Asynchronously wait for result
+				try {
+					ResultSet result = futureResult.get();
+
+					// Generate leaderboard
+					final StringBuilder sb = new StringBuilder(ChatColor.translateAlternateColorCodes('&', "&6==------ &3BetterOntime Leaderboard &6------==\n"));
+					
+					int i = 1;
+					while(result.next()) {
+						try {
+							String playerName = UUIDProvider.get(Utils.toUUID(result.getBytes(1)));
+							
+							sb.append(ChatColor.translateAlternateColorCodes('&', "&3"+i+"- &a"+playerName+": &2"+Utils.timeToString(result.getInt(2)))+"\n");
+						} catch (Exception e) {
+							e.printStackTrace();
+						}
+						i++;
+					}
+
+					sb.append(ChatColor.translateAlternateColorCodes('&', "&6==-----------------------------------=="));
+
+					new BukkitRunnable() {
+						@Override
+						public void run() {
+							// Bukkit synchronous add command and send reply to player
+							sender.sendMessage(sb.toString());
+						}
+					}.runTask(instance);
+				} catch (InterruptedException | ExecutionException | SQLException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		});
+	}
+	
+	synchronized void addTime(UUID playerId, int time) {
+		addTime(playerId, time, instance.config.serverId);
+	}
+	
+	synchronized void addTime(PlayerStats stats, int time) {
+		addTime(stats, time, instance.config.serverId);
+	}
+	
+	synchronized void addTime(UUID playerId, int time, int server) {
+		addTime(playerId, time, server, Utils.daysFromEpoch());
+	}
+	
+	synchronized void addTime(PlayerStats stats, int time, int server) {
+		addTime(stats, time, server, Utils.daysFromEpoch());
+	}
+	
+	synchronized void addTime(UUID playerId, int time, int server, int day) {
+		PlayerStats stats = this.onlinePlayersStats.get(playerId);
+		if (stats==null) {
+			stats = new PlayerStats(playerId);
+			//this.onlinePlayersStats.put(playerId, stats);
+		}
+		
+		addTime(stats, time, server, day);
+	}
+	
+	synchronized void addTime(PlayerStats stats, int time, int server, int day) {
+		this.asyncUpdate(Utils.addTimeSql(stats.uuid, time, server, day));
+		stats.addTime(time);
+	}
+	
+	synchronized void setTime(UUID playerId, int time) {
+		this.asyncUpdate("DELETE FROM playtimes WHERE player = "+Utils.UUIDtoHexString(playerId),
+						"INSERT INTO playtimes VALUES ("+Utils.UUIDtoHexString(playerId)+", 0, 0, "+time+")");
+		
+		//this.onlinePlayersStats.put(playerId, new PlayerStats(playerId, 0, 0, time, 0, time, 0, Utils.epoch()));
+	}
+	
+	/** Gets the player stats from the internal cache, or request  <br>
+	 * @return a PlayerStats object for this player, null if the player's UUID couldn't be retrieved */
+	public PlayerStats getPlayerStats(UUID uuid) {
+		PlayerStats playerStats = this.getOnlinePlayerStats(uuid);
+		if (playerStats!=null) {
+			return playerStats;
+		}
+		
+		return getPlayerStatsFromDB(uuid);
+	}
+	
+	/** Warning: Use getPlayerStats(UUID) when possible as this requests the UUID to UUIDProvider<br>
+	 * Gets the player stats from the internal cache, or request  <br>
+	 * @return a PlayerStats object for this player, null if the player's UUID couldn't be retrieved */
+	public PlayerStats getPlayerStats(OfflinePlayer player) {
+		if (player.isOnline()) {
+			return getOnlinePlayerStats(player.getPlayer());
+		}
+		
+		UUID uuid = UUIDProvider.get(player.getName());
 		if (uuid==null) {
 			return null;
 		}
-		if (player.isOnline()) {
-			return getPlayerStats(uuid);
-		}
-		return retrievePlayerStats(uuid);
+		return getPlayerStatsFromDB(uuid);
 	}
 	
-	synchronized public PlayerStats getPlayerStats(UUID playerId) {
-		PlayerStats stats = BetterOntime.instance.ds.playersStats.get(playerId);
-		if (stats!=null) {
-			return stats;
+	/** Warning: Use getOnlinePlayerStats(UUID) when possible as this requests the UUID to UUIDProvider */
+	public PlayerStats getOnlinePlayerStats(Player player) {
+		UUID uuid = UUIDProvider.get(player.getName());
+		if (uuid==null) {
+			return null;
 		}
-		return retrievePlayerStats(playerId);
+		return this.getOnlinePlayerStats(uuid);
 	}
 	
-	synchronized public PlayerStats retrievePlayerStats(UUID playerId) {
-		PlayerStats stats = new PlayerStats();
+	/** Returns players stats from local cache, available if they're online. */
+	public PlayerStats getOnlinePlayerStats(UUID playerId) {
+		return instance.ds.onlinePlayersStats.get(playerId);
+	}
+	
+	/** Retrieve player stats from the database */
+	synchronized public PlayerStats getPlayerStatsFromDB(UUID playerId) {
+		PlayerStats stats = new PlayerStats(playerId);
 		
 		try {
-			this.dbCheck();
+			Statement statement = this.statement();
 			
-			Statement statement = this.db.createStatement();
+			ResultSet results = this.query(statement, "SELECT server, day, playtime FROM playtimes WHERE player = "+Utils.UUIDtoHexString(playerId));
 			
-			ResultSet results = statement.executeQuery("SELECT server, day, playtime FROM playtimes WHERE player = "+UUIDtoHexString(playerId));
-			
-			int daysFromEpoch=daysFromEpoch(), thisServerId=BetterOntime.instance.config.serverId, playtime, serverId;
+			int daysFromEpoch=Utils.daysFromEpoch(), thisServerId=instance.config.serverId, playtime, serverId;
 			
 			while(results.next()) {
 				serverId=results.getInt(1);
@@ -206,7 +330,7 @@ class DataStore {
 				stats.global+=playtime;
 			}
 			
-			results = statement.executeQuery("SELECT lastglobalplaytime FROM playerinfo WHERE player = "+UUIDtoHexString(playerId)+" AND server="+thisServerId);
+			results = this.query(statement, "SELECT lastglobalplaytime FROM playerinfo WHERE player = "+Utils.UUIDtoHexString(playerId)+" AND server="+thisServerId);
 			
 			if(results.next()) {
 				stats.lastGlobalCheck=results.getInt(1);
@@ -214,7 +338,7 @@ class DataStore {
 			
 			stats.lastLocalCheck=stats.local;
 			
-			stats.lastEpochTime=epoch();
+			stats.lastEpochTime=Utils.epoch();
 			
 			return stats;
 		} catch (SQLException e) {
@@ -223,178 +347,99 @@ class DataStore {
 		}
 	}
 	
-	synchronized void setTime(UUID playerId, int time) {
-		try {
-			this.dbCheck();
-
-			Statement statement = this.db.createStatement();
-			statement.executeUpdate("DELETE FROM playtimes WHERE player = "+UUIDtoHexString(playerId));
-			statement.executeUpdate("INSERT INTO playtimes VALUES ("+UUIDtoHexString(playerId)+", 0, 0, "+time+")");
-			this.playersStats.put(playerId, new PlayerStats(0, 0, time, 0, time, 0, epoch()));
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-	}
-	
-	synchronized void addTime(UUID playerId, int time) {
-		addTime(playerId, time, BetterOntime.instance.config.serverId);
-	}
-	
-	synchronized void addTime(UUID playerId, int time, int server) {
-		addTime(playerId, time, server, daysFromEpoch());
-	}
-	
-	synchronized void addTime(UUID playerId, int time, int server, int day) {
-		if (time<1) { // playtime can't be less than 1
-			return;
-		}
-
-		PlayerStats stats = this.playersStats.get(playerId);
-		if (stats==null) {
-			stats = new PlayerStats();
-			this.playersStats.put(playerId, stats);
-		}
-		
-		this.dbQueue.offer("INSERT INTO playtimes VALUES ("+UUIDtoHexString(playerId)+", "+server+", "+day+", "+time+") ON DUPLICATE KEY UPDATE playtime = playtime+"+time);
-		
-		stats.localLast+=time;
-		stats.globalLast+=time;
-		stats.local+=time;
-		stats.global+=time;
-		stats.lastEpochTime=epoch();
-	}
-	
-	synchronized void setLastExecutedCommand(UUID playerId, int time, int server) {
-		this.dbQueue.offer("INSERT INTO playerinfo VALUES ("+UUIDtoHexString(playerId)+", "+server+", "+time+") ON DUPLICATE KEY UPDATE lastglobalplaytime = "+time);
-		
-		PlayerStats stats = this.playersStats.get(playerId);
-		if (stats==null) {
-			stats = new PlayerStats();
-			this.playersStats.put(playerId, stats);
-		}
-
-		stats.lastGlobalCheck=time;
+	Statement statement() throws SQLException {
+		this.dbCheck();
+		return this.db.createStatement();
 	}
 	
 	synchronized public int newServer() {
 		try {
-			this.dbCheck();
+			ResultSet results = statement().executeQuery("SELECT server FROM playtimes ORDER BY server DESC LIMIT 1");
 			
-			Statement statement = this.db.createStatement();
-			
-			ResultSet results = statement.executeQuery("SELECT server FROM playtimes ORDER BY server DESC LIMIT 1");
+			int serverId=1;
 			
 			if (results.next()) {
-				return results.getInt(1)+1;
-			} else {
-				return 1;
+				serverId = results.getInt(1)+1;
 			}
+			
+			this.update("INSERT IGNORE INTO playtimes VALUES(0x0,"+serverId+",0,0)");
+			
+			return serverId;
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
 		return 0;
 	}
 	
-	synchronized public void addCommand(StoredCommand command) {
-		try {
-			this.dbCheck();
-			Statement statement = this.db.createStatement();
+	synchronized void dbCheck() throws SQLException {
+		if(this.db == null || this.db.isClosed()) {
+			Properties connectionProps = new Properties();
 
-			statement.executeUpdate("INSERT INTO commands (server, time, repeated, command) VALUES ("+BetterOntime.instance.config.serverId+", "+command.time+", "+(command.repeated?"1":"0")+", \""+command.command+"\")", Statement.RETURN_GENERATED_KEYS);
+			connectionProps.put("user", this.username);
+			connectionProps.put("password", this.password);
 			
-			ResultSet result = statement.getGeneratedKeys();
-			if (result.next()) {
-				command.id=result.getInt(1);
-				this.commands.add(command);
-			}
-		} catch (SQLException e) {
-			e.printStackTrace();
+			this.db = DriverManager.getConnection(this.dbUrl, connectionProps); 
 		}
 	}
 	
-	synchronized public void removeCommand(int id) {
+	synchronized void dbClose()  {
 		try {
-			this.dbCheck();
-			Statement statement = this.db.createStatement();
-
-			statement.executeUpdate("DELETE FROM commands WHERE id="+id);
+			if (!this.db.isClosed()) {
+				this.db.close();
+				this.db=null;
+			}
+		} catch (SQLException e) {
 			
-			int i=0;
-			for(StoredCommand command : this.commands) {
-				if (command.id==id) {
-					this.commands.remove(i);
-					break;
+		}
+	}
+	
+	private class DatabaseUpdate implements Runnable {
+		private String[] sql;
+		
+		public DatabaseUpdate(String... sql) {
+			this.sql = sql;
+		}
+
+		@Override
+		public void run() {
+			try {
+				for (String sql : this.sql) {
+					if (sql==null) {
+						break;
+					}
+					update(sql);
 				}
-				i++;
+			} catch (SQLException e) {
+				e.printStackTrace();
 			}
-		} catch (SQLException e) {
-			e.printStackTrace();
 		}
 	}
 	
-	
-	synchronized public Leaderboard[] getLeaderboard() {
-		try {
-			this.dbCheck();
-			
-			Statement statement = this.db.createStatement();
-			
-			ResultSet results = statement.executeQuery("SELECT player, SUM(playtime) FROM playtimes GROUP BY player ORDER BY SUM(playtime) DESC LIMIT 10;");
-			
-			Leaderboard[] leaderboard = new Leaderboard[10];
-			
-			for(int i=0; i<10 && results.next(); i++) {
-				leaderboard[i]=new Leaderboard(toUUID(results.getBytes(1)), results.getInt(2));
-			}
-			
-			return leaderboard;
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-		return null;
-	}
-
-	public static int daysFromEpoch() {		
-		Calendar start = Calendar.getInstance();
-		Calendar now = Calendar.getInstance();
+	private class DatabaseUpdateGenKeys implements Callable<ResultSet> {
+		private String sql;
 		
-		start.setTimeInMillis(0);
-		
-		int days=0;
-		
-		while(start.get(Calendar.YEAR)<now.get(Calendar.YEAR)) {
-			days+=start.getActualMaximum(Calendar.DAY_OF_YEAR);
-			start.add(Calendar.YEAR, 1);
+		public DatabaseUpdateGenKeys(String sql) {
+			this.sql = sql;
 		}
 		
-		days+=now.get(Calendar.DAY_OF_YEAR)-start.get(Calendar.DAY_OF_YEAR);
+		@Override
+		public ResultSet call() throws Exception {
+			return updateGenKeys(sql);
+		}
 		
-		return days;
 	}
 	
-	
-	public static UUID toUUID(byte[] bytes) {
-	    if (bytes.length != 16) {
-	        throw new IllegalArgumentException();
-	    }
-	    int i = 0;
-	    long msl = 0;
-	    for (; i < 8; i++) {
-	        msl = (msl << 8) | (bytes[i] & 0xFF);
-	    }
-	    long lsl = 0;
-	    for (; i < 16; i++) {
-	        lsl = (lsl << 8) | (bytes[i] & 0xFF);
-	    }
-	    return new UUID(msl, lsl);
-	}
-	
-	public static String UUIDtoHexString(UUID uuid) {
-		if (uuid==null) return "0x0";
-		return "0x"+org.apache.commons.lang.StringUtils.leftPad(Long.toHexString(uuid.getMostSignificantBits()), 16, "0")+org.apache.commons.lang.StringUtils.leftPad(Long.toHexString(uuid.getLeastSignificantBits()), 16, "0");
-	}
-	
-	public static int epoch() {
-		return (int) (System.currentTimeMillis()/1000);
+	private class DatabaseQuery implements Callable<ResultSet> {
+		private String sql;
+		
+		public DatabaseQuery(String sql) {
+			this.sql = sql;
+		}
+		
+		@Override
+		public ResultSet call() throws Exception {
+			return query(sql);
+		}
+		
 	}
 }

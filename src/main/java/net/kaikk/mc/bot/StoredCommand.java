@@ -25,7 +25,7 @@ class StoredCommand {
 	
 	StoredCommand(int id, int time, boolean repeated, String command) {
 		this.id=id;
-		this.server = BetterOntime.instance.config.serverId;
+		this.server = BetterOntime.instance().config.serverId;
 		this.time = time;
 		this.repeated = repeated;
 		this.command = command;

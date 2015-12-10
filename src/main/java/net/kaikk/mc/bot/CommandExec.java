@@ -14,396 +14,368 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 package net.kaikk.mc.bot;
 
-import java.util.ArrayList;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
-import net.kaikk.mc.uuidprovider.UUIDProvider;
-
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitRunnable;
 
-public class CommandExec implements CommandExecutor {
+import net.kaikk.mc.uuidprovider.UUIDProvider;
+
+class CommandExec implements CommandExecutor {
+	private BetterOntime instance;
+	private ExecutorService executor = Executors.newSingleThreadExecutor();
+
+	CommandExec(BetterOntime instance) {
+		this.instance = instance;
+	}
 
 	@Override
 	public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
-		Player player = null;
-		if (sender instanceof Player) {
-			player = (Player) sender;
-		}
-		
 		if (cmd.getName().equalsIgnoreCase("betterontime")) {
-			if (args.length!=0) {
-				if (args[0].equalsIgnoreCase("info")) {
-					if (!sender.hasPermission("betterontime.manage")) {
-						sender.sendMessage("You're not allowed to run this command.");
-						return false;
-					}
-					
-					sender.sendMessage("BetterOntime serverId: "+BetterOntime.instance.config.serverId);
-					return true;
-				}
-				
-				if (args[0].equalsIgnoreCase("reload")) {
-					if (!sender.hasPermission("betterontime.manage")) {
-						sender.sendMessage("You're not allowed to run this command.");
-						return false;
-					}
-					
-					sender.sendMessage("Reloading BetterOntime... prepare for unforeseen consequences!");
+			if (args.length==0) {
+				// check own playtime
+				return stats(sender, label, args);
+			}
 
-					try {
-						BetterOntime.instance.load();
-						sender.sendMessage("BetterOntime reloaded!");
-					} catch (Exception e) {
-						e.printStackTrace();
-						sender.sendMessage("BetterOntime reload error!");
-					}
-
-					return true;
-				}
-				if (args[0].equalsIgnoreCase("help")) {
-					sender.sendMessage("Aliases: betterontime, bot, ontime\n"
-							+ "- shows your statistics\n"
-							+ (sender.hasPermission("betterontime.others") ? "- [name] - checks the player's playtime\n" : "")
-							+ (sender.hasPermission("betterontime.leaderboard") ? "- leaderboard - shows the leaderboard\n" : "")
-							+ (sender.hasPermission("betterontime.manage") ? ""
-								+ "- add [name] [time] - add playtime to player's statistics\n"
-								+ "- set [name] [time] - set player's global playtime\n"
-								+ "- cmd - manages commands\n"
-								+ "- reload - reloads data\n" : ""));
-					return true;
-				}
-				
-				if (args[0].equalsIgnoreCase("leaderboard")) {
-					if (!sender.hasPermission("betterontime.leaderboard")) {
-						sender.sendMessage("You're not allowed to run this command.");
-						return false;
-					}
-					
-					Leaderboard[] leaderboard = BetterOntime.instance.ds.getLeaderboard();
-					
-					sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&6==------ &3BetterOntime Leaderboard &6------=="));
-					
-					for (int i=0; i<10 && leaderboard[i]!=null; i++) {
-						String name = leaderboard[i].getName();
-						if (name==null && leaderboard[i].uuid!=null) {
-							name=UUIDProvider.retrieveName(leaderboard[i].uuid);
-						}
-						sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&3"+(i+1)+"- &a"+name+": &2"+timeToString(leaderboard[i].time)));
-					}
-					sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&6==-----------------------------------=="));
-					return true;
-				}
-				
-				if (args[0].equalsIgnoreCase("cmd")) {
-					if (!sender.hasPermission("betterontime.manage")) {
-						sender.sendMessage("You're not allowed to run this command.");
-						return false;
-					}
-					
-					if (args.length==1) {
-						sender.sendMessage("Usage: /betterontime cmd [list|add|remove]");
-						return false;
-					}
-					
-					if (args[1].equalsIgnoreCase("list")) {
-						if (BetterOntime.instance.ds.commands.isEmpty()) {
-							sender.sendMessage("No commands found for this server.");
-							return true;
-						}
-						sender.sendMessage(ChatColor.RED + "BetterOntime commands list:");
-						for(StoredCommand command : BetterOntime.instance.ds.commands) {
-							String msg="&3("+command.id+") "+(command.repeated?"Every ":"At &2")+timeToString(command.time);
-							
-							String[] commandsToRun = command.command.split("@n@");
-							
-							for (String cmdToRun : commandsToRun) {
-								 msg=msg+"\n&c>&f "+cmdToRun;
-							}
-							
-							sender.sendMessage(ChatColor.translateAlternateColorCodes('&', msg));
-						}
-						return true;
-					} else if (args[1].equalsIgnoreCase("add")) {
-						if (args.length<5) {
-							sender.sendMessage("Usage: /betterontime cmd add [time] [repeated: true|false] [command]");
-							return false;
-						}
-	
-						Integer secs = stringToTime(args[2]);
-						if (secs==null) {
-							sender.sendMessage("Usage: /betterontime cmd add [time] [repeated: true|false] [command]");
-							return false;
-						}
-						
-						if (secs<1) {
-							sender.sendMessage("Time must be greater than 0.");
-							return false;
-						}
-						
-						boolean repeated = args[3].equalsIgnoreCase("true") ? true : false;
-						
-						String stringCommand = mergeStringArrayFromIndex(args, 4);
-						
-						BetterOntime.instance.ds.addCommand(new StoredCommand(0, secs, repeated, stringCommand));
-						sender.sendMessage("Command added.");
-					} else if (args[1].equalsIgnoreCase("remove")) {
-						if (args.length!=3) {
-							sender.sendMessage("Usage: /betterontime cmd remove [id]");
-							return false;
-						}
-	
-						try {
-							Integer id = Integer.valueOf(args[2]);
-							
-							BetterOntime.instance.ds.removeCommand(id);
-							sender.sendMessage("Command removed.");
-						} catch (NumberFormatException e) {
-							sender.sendMessage("Wrong id.");
-							return false;
-						}
-					}
-					return true;
-				}
-				
-				if (args[0].equalsIgnoreCase("add")) {
-					if (!sender.hasPermission("betterontime.manage")) {
-						sender.sendMessage("You're not allowed to run this command.");
-						return false;
-					}
-	
-					if (args.length!=3) {
-						sender.sendMessage("Usage: /betterontime add [PlayerName] [time]"); 
-						return false;
-					}
-					
-					Integer time=stringToTime(args[2]);
-					if (time==null||time<1) {
-						sender.sendMessage("Invalid time.");
-						return false;
-					}
-					
-					UUID uuid;
-					OfflinePlayer targetPlayer=BetterOntime.instance.getServer().getOfflinePlayer(args[1]);
-					if (targetPlayer==null) {
-						uuid = UUIDProvider.retrieveUUID(args[1]);
-					} else {
-						uuid = UUIDProvider.get(targetPlayer);
-					}
-					
-					if (uuid==null) {
-						sender.sendMessage("Invalid player name.");
-						return false;
-					}
-					
-					BetterOntime.instance.ds.addTime(uuid, time, 0, 0);
-					sender.sendMessage("Added "+timeToString(time)+" to "+targetPlayer.getName()+"'s playtime.");
-					return true;
-				}
-				
-				
-				if (args[0].equalsIgnoreCase("set")) {
-					if (!sender.hasPermission("betterontime.manage")) {
-						sender.sendMessage("You're not allowed to run this command.");
-						return false;
-					}
-	
-					if (args.length!=3) {
-						sender.sendMessage("Usage: /betterontime set [PlayerName] [time]"); 
-						return false;
-					}
-					
-					Integer time=stringToTime(args[2]);
-					if (time==null||time<1) {
-						sender.sendMessage("Invalid time.");
-						return false;
-					}
-					
-					UUID uuid;
-					OfflinePlayer targetPlayer=BetterOntime.instance.getServer().getOfflinePlayer(args[1]);
-					if (targetPlayer==null) {
-						uuid = UUIDProvider.retrieveUUID(args[1]);
-					} else {
-						uuid = UUIDProvider.get(targetPlayer);
-					}
-					
-					if (uuid==null) {
-						sender.sendMessage("Invalid player name.");
-						return false;
-					}
-					
-					BetterOntime.instance.ds.setTime(uuid, time);
-					sender.sendMessage("Set "+targetPlayer.getName()+"'s playtime to "+timeToString(time));
-					return true;
-				}
+			switch(args[0].toLowerCase()) {
+			case "info":
+				return info(sender, label, args);
+			case "reload":
+				return reload(sender, label, args);
+			case "help":
+				return help(sender, label, args);
+			case "add":
+				return add(sender, label, args);
+			case "set":
+				return set(sender, label, args);
+			case "leaderboard":
+				return leaderboard(sender, label, args);
+			case "cmd":
+				return cmd(sender, label, args);
+			default:
+				// check specified player's playtime
+				return stats(sender, label, args);
 			}
-			
-			// Time check
-			OfflinePlayer targetPlayer=player;
-			UUID uuid=null;
-			if (args.length==1) {
-				if (!sender.hasPermission("betterontime.others")) {
-					sender.sendMessage("You're not allowed to run this command.");
-					return false;
-				}
-				targetPlayer=BetterOntime.instance.getServer().getOfflinePlayer(args[0]);
-
-				if (targetPlayer==null) {
-					uuid = UUIDProvider.retrieveUUID(args[1]);
-				}
-			} else if (!sender.hasPermission("betterontime.self")) {
-				sender.sendMessage("You're not allowed to run this command.");
-				return false;
-			}
-			
-			PlayerStats stats=null;
-			if (targetPlayer!=null) {
-				stats = BetterOntime.instance.ds.getPlayerStats(targetPlayer);
-			} else if (uuid!=null) {
-				stats = BetterOntime.instance.ds.retrievePlayerStats(uuid);
-			}
-			
-			if (stats==null || stats.global==0) {
-				sender.sendMessage("No statistics found for this player.");
-				return false;
-			}
-			
-			int timeToAdd=DataStore.epoch()-stats.lastEpochTime;
-			
-			sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&6---- Statistics for "+targetPlayer.getName()+" ----\n"
-					+ "&cGlobal:\n&e- Total    : &f"+timeToString(stats.global+timeToAdd)+"\n&e- Last 7d : &f"+timeToString(stats.globalLast+timeToAdd)+"\n"
-					+ "&cLocal:\n&e- Total    : &f"+timeToString(stats.local+timeToAdd)+"\n&e- Last 7d : &f"+timeToString(stats.localLast+timeToAdd)));
-			return true;
-			
-		}
-		
-		if (cmd.getName().equalsIgnoreCase("msgraw")) {
+		} else if (cmd.getName().equalsIgnoreCase("msgraw")) {
 			if (!sender.isOp()) {
 				sender.sendMessage("This is an OP only command.");
 				return false;
 			}
-			
+
 			if (args.length<2) {
 				sender.sendMessage("Usage: /msgraw [PlayerName] [Raw Message]");
 				return false;
 			}
-			
-			Player targetPlayer = BetterOntime.instance.getServer().getPlayer(args[0]);
+
+			Player targetPlayer = instance.getServer().getPlayer(args[0]);
 			if (targetPlayer==null) {
 				sender.sendMessage("Invalid player");
 				return false;
 			}
-			
-			targetPlayer.sendMessage(ChatColor.translateAlternateColorCodes('&', mergeStringArrayFromIndex(args,1)));
+
+			targetPlayer.sendMessage(ChatColor.translateAlternateColorCodes('&', Utils.mergeStringArrayFromIndex(args,1)));
 			return true;
 		}
-		
+
 		return false;
 	}
 
-	static String timeToString(int time) {
-		ArrayList<String> strs = new ArrayList<String>();
 
-		if (time<0) {
-			time*=-1;
+	private boolean info(final CommandSender sender, final String label, final String[] args) {
+		if (!sender.hasPermission("betterontime.manage")) {
+			sender.sendMessage("You're not allowed to run this command.");
+			return false;
 		}
-		
-		// seconds
-		int secs = time % 60;
-		if (secs!=0||time==0) {
-			strs.add(secs+" second"+(secs!=1?"s":""));
-		}
-		if (time<60) {
-			return mergeTimeStrings(strs);
-		}
-		
-		// minutes
-		int tmins = (time-secs) / 60;
-		int mins = tmins % 60;
-		if (mins!=0) {
-			strs.add(mins+" minute"+(mins!=1?"s":""));
-		}
-		if (tmins<60) {
-			return mergeTimeStrings(strs);
-		}
-		
-		// hours
-		int thours = (tmins-mins) / 60;
-		int hours = thours % 24;
-		if (hours!=0) {
-			strs.add(hours+" hour"+(hours!=1?"s":""));
-		}
-		if (thours<24) {
-			return mergeTimeStrings(strs);
-		}
-		
-		// days
-		int tdays = (thours-hours) / 24;
-		if (tdays!=0) {
-			strs.add(tdays+" day"+(tdays!=1?"s":""));
-		}
-		
-		return mergeTimeStrings(strs);
+
+		sender.sendMessage("BetterOntime serverId: "+instance.config.serverId);
+		return true;
 	}
-	
-	public static String mergeTimeStrings(ArrayList<String> strs) {
-		String string="";
-		for(String str : strs) {
-			string=str+(string==""?"":" ")+string;
-		}
-		return string;
+
+	private boolean help(final CommandSender sender, final String label, final String[] args) {
+		sender.sendMessage("Aliases: betterontime, bot, ontime\n"
+				+ "- shows your statistics\n"
+				+ (sender.hasPermission("betterontime.others") ? "- [name] - checks the player's playtime\n" : "")
+				+ (sender.hasPermission("betterontime.leaderboard") ? "- leaderboard - shows the leaderboard\n" : "")
+				+ (sender.hasPermission("betterontime.manage") ? ""
+						+ "- add [name] [time] - add playtime to player's statistics\n"
+						+ "- set [name] [time] - set player's global playtime\n"
+						+ "- cmd - manages commands\n"
+						+ "- reload - reloads data\n" : ""));
+		return true;
 	}
-	
-	public static Integer stringToTime(String tString) {
-		Integer time;
-		tString=tString.replace(" ", "").toLowerCase();
-		
+
+	private boolean reload(final CommandSender sender, final String label, final String[] args) {
+		if (!sender.hasPermission("betterontime.manage")) {
+			sender.sendMessage("You're not allowed to run this command.");
+			return false;
+		}
+
+		sender.sendMessage("Reloading BetterOntime... prepare for unforeseen consequences!");
+
 		try {
-			time=Integer.valueOf(tString);
-			return time;
-		} catch (NumberFormatException e) {
+			Bukkit.getPluginManager().disablePlugin(instance);
+			Bukkit.getPluginManager().enablePlugin(instance);
+			sender.sendMessage("BetterOntime reloaded!");
+		} catch (Exception e) {
+			e.printStackTrace();
+			sender.sendMessage("BetterOntime reload error!");
+		}
+
+		return true;
+	}
+
+	private boolean cmd(final CommandSender sender, final String label, final String[] args) {
+		if (!sender.hasPermission("betterontime.manage")) {
+			sender.sendMessage("You're not allowed to run this command.");
+			return false;
+		}
+
+		if (args.length==1) {
+			sender.sendMessage("Usage: /betterontime cmd [list|add|remove]");
+			return false;
+		}
+
+		if (args[1].equalsIgnoreCase("list")) {
+			if (instance.ds.commands.isEmpty()) {
+				sender.sendMessage("No commands found for this server.");
+				return true;
+			}
+			sender.sendMessage(ChatColor.RED + "BetterOntime commands list:");
+			for(StoredCommand command : instance.ds.commands) {
+				String msg="&3("+command.id+") "+(command.repeated?"Every ":"At &2")+Utils.timeToString(command.time);
+
+				String[] commandsToRun = command.command.split("@n@");
+
+				for (String cmdToRun : commandsToRun) {
+					msg=msg+"\n&c>&f "+cmdToRun;
+				}
+
+				sender.sendMessage(ChatColor.translateAlternateColorCodes('&', msg));
+			}
+			return true;
+		} else if (args[1].equalsIgnoreCase("add")) {
+			if (args.length<5) {
+				sender.sendMessage("Usage: /betterontime cmd add [time] [repeated: true|false] [command]");
+				return false;
+			}
+
+			Integer secs = Utils.stringToTime(args[2]);
+			if (secs==null) {
+				sender.sendMessage("Usage: /betterontime cmd add [time] [repeated: true|false] [command]");
+				return false;
+			}
+
+			if (secs<1) {
+				sender.sendMessage("Time must be greater than 0.");
+				return false;
+			}
+
+			boolean repeated = args[3].equalsIgnoreCase("true") ? true : false;
+
+			String stringCommand = Utils.mergeStringArrayFromIndex(args, 4);
+
+			final StoredCommand command = new StoredCommand(0, secs, repeated, stringCommand);
+			final Future<ResultSet> futureResult = instance.ds.asyncUpdateGenKeys("INSERT INTO commands (server, time, repeated, command) VALUES ("+instance.config.serverId+", "+command.time+", "+(command.repeated?"1":"0")+", \""+command.command+"\")");
+
+			executor.execute(new Runnable() {
+				@Override
+				public void run() {
+					try {
+						// Asynchronously wait for result
+						ResultSet result = futureResult.get();
+						if (result.next()) {
+							command.id=result.getInt(1);
+							instance.ds.commands.add(command);
+							sender.sendMessage("Command added.");
+						}
+					} catch (InterruptedException | ExecutionException | SQLException e) {
+						e.printStackTrace();
+					}
+				}
+			});
+		} else if (args[1].equalsIgnoreCase("remove")) {
+			if (args.length!=3) {
+				sender.sendMessage("Usage: /betterontime cmd remove [id]");
+				return false;
+			}
+
 			try {
-				time=Integer.valueOf(tString.substring(0, tString.length()-1));
-			} catch (NumberFormatException e1) {
-				return null;
+				Integer id = Integer.valueOf(args[2]);
+				instance.ds.asyncUpdate("DELETE FROM commands WHERE id="+id);
+				int i=-1;
+				
+				for (int j=0; j<instance.ds.commands.size(); j++) {
+					if (instance.ds.commands.get(j).id==id) {
+						i=j;
+						break;
+					}
+				}
+				
+				if (i==-1) {
+					sender.sendMessage("Command id doesn't exist.");
+					return false;
+				}
+				
+				instance.ds.commands.remove(i);
+				
+				for(PlayerStats stats : instance.ds.onlinePlayersStats.values()) {
+					stats.calculateCommandsExclusions();
+				}
+				
+				sender.sendMessage("Command removed.");
+			} catch (NumberFormatException e) {
+				sender.sendMessage("Wrong id.");
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private boolean leaderboard(final CommandSender sender, final String label, final String[] args) {
+		if (!sender.hasPermission("betterontime.leaderboard")) {
+			sender.sendMessage("You're not allowed to run this command.");
+			return false;
+		}
+
+		sender.sendMessage(ChatColor.AQUA + "Retrieving leaderboard...");
+		
+		instance.ds.leaderboard(sender);
+
+		return true;
+	}
+
+	private boolean add(final CommandSender sender, final String label, final String[] args) {
+		if (!sender.hasPermission("betterontime.manage")) {
+			sender.sendMessage("You're not allowed to run this command.");
+			return false;
+		}
+
+		if (args.length!=3) {
+			sender.sendMessage("Usage: /betterontime add [PlayerName] [time]"); 
+			return false;
+		}
+
+		Integer time=Utils.stringToTime(args[2]);
+		if (time==null||time<1) {
+			sender.sendMessage("Invalid time.");
+			return false;
+		}
+
+		UUID uuid = UUIDProvider.get(args[1]);
+		if (uuid==null) {
+			sender.sendMessage("Invalid player name.");
+			return false;
+		}
+
+		instance.ds.addTime(uuid, time, 0, 0);
+		sender.sendMessage("Added "+Utils.timeToString(time)+" to "+args[1]+"'s playtime.");
+		return true;
+	}
+
+	private boolean set(final CommandSender sender, final String label, final String[] args) {
+		if (!sender.hasPermission("betterontime.manage")) {
+			sender.sendMessage("You're not allowed to run this command.");
+			return false;
+		}
+
+		if (args.length!=3) {
+			sender.sendMessage("Usage: /betterontime set [PlayerName] [time]"); 
+			return false;
+		}
+
+		Integer time=Utils.stringToTime(args[2]);
+		if (time==null||time<1) {
+			sender.sendMessage("Invalid time.");
+			return false;
+		}
+
+		UUID uuid = UUIDProvider.get(args[1]);
+		if (uuid==null) {
+			sender.sendMessage("Invalid player name.");
+			return false;
+		}
+		
+		OfflinePlayer targetPlayer=instance.getServer().getOfflinePlayer(args[1]);
+		if (targetPlayer.isOnline()) {
+			PlayerStats stats = new PlayerStats(uuid, 0, 0, time, 0, time, 0, Utils.epoch());
+			stats.player=targetPlayer.getPlayer();
+			stats.calculateCommandsExclusions();
+			BetterOntime.instance().ds.onlinePlayersStats.put(uuid, stats);
+		}
+
+		instance.ds.setTime(uuid, time);
+		sender.sendMessage("Set "+args[1]+"'s playtime to "+Utils.timeToString(time));
+		return true;
+	}
+
+	private boolean stats(final CommandSender sender, final String label, final String[] args) {
+		final String playerToCheck;
+		if (args.length==1 && !sender.getName().equalsIgnoreCase(args[0])) {
+			if (!sender.hasPermission("betterontime.others")) {
+				sender.sendMessage("You're not allowed to run this command.");
+				return false;
 			}
 			
-			char unit = tString.charAt(tString.length()-1);
+			playerToCheck = args[0];
+		} else {
+			if (!(sender instanceof OfflinePlayer)) {
+				sender.sendMessage("Usage: /"+label+" [PlayerName]");
+				return false;
+			}
+			if (!sender.hasPermission("betterontime.self")) {
+				sender.sendMessage("You're not allowed to run this command.");
+				return false;
+			}
+			
+			playerToCheck = sender.getName();
+		}
+		
+		executor.execute(new Runnable() {
+			@Override
+			public void run() {
+				final UUID uuid = UUIDProvider.get(playerToCheck);
+				if (uuid == null) {
+					sender.sendMessage("Invalid player name: "+playerToCheck);
+					return;
+				}
+				
+				final String message;
+				PlayerStats stats = instance.ds.getPlayerStats(uuid);
+				if (stats==null || stats.global==0) {
+					message = "No statistics found for this player.";
+				} else {
+					int timeToAdd=Utils.epoch()-stats.lastEpochTime;
 
-			switch(unit) {
-			case 's':
-				return time;
-			case 'm':
-				return time*60;
-			case 'h':
-				return time*3600;
-			case 'd':
-				return time*86400;
-			default:
-				return null;
+					message = ChatColor.translateAlternateColorCodes('&', "&6---- Statistics for "+playerToCheck+" ----\n"
+							+ "&cGlobal:\n&e- Total    : &f"+Utils.timeToString(stats.global+timeToAdd)+"\n&e- Last 7d : &f"+Utils.timeToString(stats.globalLast+timeToAdd)+"\n"
+							+ "&cLocal:\n&e- Total    : &f"+Utils.timeToString(stats.local+timeToAdd)+"\n&e- Last 7d : &f"+Utils.timeToString(stats.localLast+timeToAdd));	
+				}
+
+				new BukkitRunnable() {
+					@Override
+					public void run() {
+						sender.sendMessage(message);
+					}
+				}.runTask(instance);
 			}
-		}
-	}
-	
-	/** This static method will merge an array of strings from a specific index 
-	 * @return null if arrayString.length < i*/
-	static String mergeStringArrayFromIndex(String[] arrayString, int i) {
-		if (i<arrayString.length){
-			String string=arrayString[i];
-			i++;
-			for(;i<arrayString.length;i++){
-				string=string+" "+arrayString[i];
-			}
-			return string;
-		}
-		return null;
+		});
+		
+		return true;
 	}
 }

@@ -1,0 +1,16 @@
+# Unique server id. Change this value for every server you run with the same database.
+ServerId: 0
+
+# After this number of minutes, the player won't get 
+InactiveAfterMins: 5
+
+# The interval between data saves (on the MySQL databases), in seconds 
+SaveDataInterval: 60
+
+# Configuration for MySQL
+MySQL:
+  Hostname: localhost
+  Username: BetterOntime
+  Password: BetterOntimePassword
+  Database: BetterOntime
+  

@@ -18,12 +18,30 @@
 
 package net.kaikk.mc.bot;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.UUID;
+
+import org.bukkit.block.Block;
+import org.bukkit.entity.Player;
+
 public class PlayerStats {
+	Player player;
+	UUID uuid;
+	
 	int local, localLast, global, globalLast, lastGlobalCheck, lastLocalCheck, lastEpochTime;
+	long lastInteraction=System.currentTimeMillis();
+	Block lastBlockInteraction;
+
+	List<StoredCommand> excludedCommands = Collections.emptyList();
 	
-	PlayerStats() {	}
+	PlayerStats(UUID uuid) {
+		this.uuid = uuid;
+	}
 	
-	PlayerStats(int local, int localLast, int global, int globalLast, int lastGlobalCheck, int lastLocalCheck, int lastEpochTime) {
+	PlayerStats(UUID uuid, int local, int localLast, int global, int globalLast, int lastGlobalCheck, int lastLocalCheck, int lastEpochTime) {
+		this.uuid = uuid;
 		this.local = local;
 		this.localLast = localLast;
 		this.global = global;
@@ -31,5 +49,60 @@ public class PlayerStats {
 		this.lastGlobalCheck = lastGlobalCheck;
 		this.lastLocalCheck = lastLocalCheck;
 		this.lastEpochTime = lastEpochTime;
+	}
+	
+	public boolean isPlayerOnline() {
+		if (player==null) {
+			return false;
+		}
+		
+		return player.isOnline();
+	}
+	
+	public boolean isAFK() {
+		return System.currentTimeMillis()-this.lastInteraction>BetterOntime.instance().config.inactivityMinutes*60000L;
+	}
+	
+	public String getPlayerName() {
+		if (player==null || player.getName()==null) {
+			return "(UUID:"+uuid+")";
+		}
+		
+		return player.getName();
+	}
+	
+	/** Add time to players stats. This doesn't update the database. */
+	void addTime(int time) {
+		this.localLast+=time;
+		this.globalLast+=time;
+		this.local+=time;
+		this.global+=time;
+		this.lastEpochTime=Utils.epoch();
+	}
+	
+	/** Set the player and add this object to the players updated by the Update Task */
+	void setPlayer(Player player) {
+		this.player=player;
+		this.calculateCommandsExclusions();
+		BetterOntime.instance().ds.onlinePlayersStats.put(uuid, this);
+	}
+	
+	/** Calculate commands exclusions with permissions. The player must be set. Thread-unsafe. */
+	void calculateCommandsExclusions() {
+		if (this.player==null) {
+			throw new IllegalStateException("You must set the player object before calling this method.");
+		}
+		
+		List<StoredCommand> scList = new ArrayList<StoredCommand>();
+		
+		for(StoredCommand cmd : BetterOntime.instance().ds.commands) {
+			if (Utils.hasExplicitPermission(this.player, "betterontime.exclude."+cmd.id)) {
+				scList.add(cmd);
+			}
+		}
+		
+		if (!scList.isEmpty()) {
+			this.excludedCommands=Collections.unmodifiableList(scList);
+		}
 	}
 }

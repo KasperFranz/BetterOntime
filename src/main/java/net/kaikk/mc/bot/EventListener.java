@@ -25,37 +25,78 @@ import net.kaikk.mc.uuidprovider.UUIDProvider;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
+import org.bukkit.event.player.PlayerChatEvent;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerLoginEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
+@SuppressWarnings("deprecation")
 public class EventListener implements Listener {
-	@EventHandler(priority=EventPriority.NORMAL)
+	BetterOntime instance;
+	
+	EventListener(BetterOntime instance) {
+		this.instance = instance;
+	}
+
+	@EventHandler(priority=EventPriority.MONITOR)
 	public void onPlayerLogin(PlayerLoginEvent event) {
-		//BetterOntime.instance.getLogger().info("BOT oPL");
-		UUID uuid=UUIDProvider.get(event.getPlayer());
-		if (uuid!=null) {
-			PlayerStats stats = BetterOntime.instance.ds.retrievePlayerStats(uuid);
-			if (stats!=null) {
-				BetterOntime.instance.ds.playersStats.put(uuid, stats);
+		UUID uuid=UUIDProvider.get(event.getPlayer().getName());
+		if (uuid==null) {
+			instance.getLogger().severe(event.getPlayer().getName()+" UUID is null! I'll ignore this player.");
+			return;
+		}
+
+		PlayerStats stats = instance.ds.getPlayerStatsFromDB(uuid);
+		if (stats!=null) { // retrievePlayerStats returns null if there was a mysql exception... ignore this player in that case.
+			stats.setPlayer(event.getPlayer());
+		}
+	}
+	
+	@EventHandler
+	public void onPlayerQuit(PlayerQuitEvent event) {
+		System.out.println("PlayerQuitEvent: "+event.getPlayer().getName());
+		UUID uuid=UUIDProvider.get(event.getPlayer().getName());
+		if (uuid==null) {
+			instance.getLogger().severe(event.getPlayer().getName()+" UUID is null! I've ignored this player.");
+			return;
+		}
+
+		// Remove from 
+		PlayerStats stats = instance.ds.onlinePlayersStats.remove(uuid);
+		
+		// Add time since last add
+		if (stats!=null && !stats.isAFK()) {
+			int timeToAdd=Utils.epoch()-stats.lastEpochTime;
+			instance.ds.addTime(uuid, timeToAdd);
+		}
+	}
+	
+	@EventHandler(priority=EventPriority.MONITOR)
+	public void onPlayerInteract(PlayerInteractEvent event) {
+		if (event.getAction()==Action.LEFT_CLICK_BLOCK || event.getAction()==Action.RIGHT_CLICK_BLOCK) {
+			PlayerStats stats = instance.ds.getOnlinePlayerStats(event.getPlayer().getUniqueId());
+			if (stats!=null && stats.lastBlockInteraction!=event.getClickedBlock()) {
+				stats.lastInteraction=System.currentTimeMillis();
+				stats.lastBlockInteraction=event.getClickedBlock();
 			}
 		}
 	}
 	
-	@EventHandler(priority=EventPriority.NORMAL)
-	public void onPlayerQuit(PlayerQuitEvent event) {
-		UUID uuid=UUIDProvider.get(event.getPlayer());
-		//BetterOntime.instance.getLogger().info(event.getPlayer().getName()+" logs out");
-		if (uuid==null) {
-			BetterOntime.instance.getLogger().severe(event.getPlayer().getName()+" UUID is null!");
-			return;
+	@EventHandler(priority=EventPriority.MONITOR, ignoreCancelled = true)
+	public void onPlayerCommand(PlayerCommandPreprocessEvent event) {
+		PlayerStats stats = instance.ds.getOnlinePlayerStats(event.getPlayer().getUniqueId());
+		if (stats!=null) {
+			stats.lastInteraction=System.currentTimeMillis();
 		}
-		
-		PlayerStats stats = BetterOntime.instance.ds.playersStats.remove(uuid);
+	}
 
-		if (stats!=null&&stats.lastEpochTime!=0) {
-			int timeToAdd=DataStore.epoch()-stats.lastEpochTime;
-			//BetterOntime.instance.getLogger().info(event.getPlayer().getName()+" logs out -> time to add: "+timeToAdd);
-			BetterOntime.instance.ds.addTime(uuid, timeToAdd);
+	@EventHandler(priority=EventPriority.MONITOR, ignoreCancelled = true)
+	public void onPlayerChat(PlayerChatEvent event) {
+		PlayerStats stats = instance.ds.getPlayerStats(event.getPlayer());
+		if (stats!=null) {
+			stats.lastInteraction=System.currentTimeMillis();
 		}
 	}
 }
