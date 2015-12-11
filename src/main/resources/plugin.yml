@@ -12,7 +12,7 @@ commands:
       description: Send to player a raw private msg
 
 permissions:
-	betterontime.log:
+    betterontime.log:
         description: Users with this permission will get his time counted
         default: false
     betterontime.self:
@@ -27,4 +27,3 @@ permissions:
     betterontime.manage:
         description: OP-level commands
         default: op
-        
