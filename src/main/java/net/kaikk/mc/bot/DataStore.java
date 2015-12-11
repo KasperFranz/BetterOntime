@@ -40,7 +40,7 @@ class DataStore {
 	
 	Map<UUID,PlayerStats> onlinePlayersStats = new ConcurrentHashMap<UUID,PlayerStats>(8, 1f, 1);
 	
-	DataStore(BetterOntime instance) throws Exception {
+	DataStore(final BetterOntime instance) throws Exception {
 		this.instance=instance;
 		this.dbUrl = "jdbc:mysql://"+instance.config.dbHostname+"/"+instance.config.dbDatabase;
 		this.username = instance.config.dbUsername;
@@ -125,18 +125,24 @@ class DataStore {
 		}
 		
 		// Load online players to stats
-		for (Player player : instance.getServer().getOnlinePlayers()) {
-			UUID uuid=UUIDProvider.get(player.getName());
-			if (uuid==null) {
-				instance.getLogger().severe(player+" UUID is null! I'll ignore this player.");
-				continue;
+		new BukkitRunnable() {
+			@Override
+			public void run() {
+				for (Player player : instance.getServer().getOnlinePlayers()) {
+					UUID uuid=UUIDProvider.get(player.getName());
+					if (uuid==null) {
+						instance.getLogger().severe(player+" UUID is null! I'll ignore this player.");
+						continue;
+					}
+					
+					PlayerStats stats = instance.ds.getPlayerStatsFromDB(uuid);
+					if (stats!=null) { // retrievePlayerStats returns null if there was a mysql exception... ignore this player in that case.
+						stats.setPlayer(player);
+					}
+				}
 			}
-			
-			PlayerStats stats = instance.ds.getPlayerStatsFromDB(uuid);
-			if (stats!=null) { // retrievePlayerStats returns null if there was a mysql exception... ignore this player in that case.
-				stats.setPlayer(player);
-			}
-		}
+		}.runTaskLater(instance, 1L);
+		
 	}
 	
 	void asyncUpdate(List<String> sql) {
