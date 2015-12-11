@@ -55,7 +55,11 @@ public class EventListener implements Listener {
 
 		PlayerStats stats = instance.ds.getPlayerStatsFromDB(uuid);
 		if (stats!=null) { // retrievePlayerStats returns null if there was a mysql exception... ignore this player in that case.
-			stats.setPlayer(event.getPlayer());
+			try {
+				stats.setPlayer(event.getPlayer());
+			} catch (IllegalStateException e) {
+				instance.getLogger().severe(event.getPlayer().getName()+" wasn't loaded: "+e.getMessage());
+			}
 		}
 	}
 	

@@ -12,6 +12,9 @@ commands:
       description: Send to player a raw private msg
 
 permissions:
+	betterontime.log:
+        description: Users with this permission will get his time counted
+        default: false
     betterontime.self:
         description: Users with this permission can check their ontime
         default: false
