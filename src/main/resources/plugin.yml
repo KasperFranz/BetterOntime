@@ -14,10 +14,10 @@ commands:
 permissions:
     betterontime.self:
         description: Users with this permission can check their ontime
-        default: true
+        default: false
     betterontime.leaderboard:
         description: Users with this permission can check the leaderboard
-        default: true
+        default: false
     betterontime.others:
         description: Users with this permission can check others ontime
         default: op
