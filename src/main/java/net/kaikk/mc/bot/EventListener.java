@@ -20,8 +20,6 @@ package net.kaikk.mc.bot;
 
 import java.util.UUID;
 
-import net.kaikk.mc.uuidprovider.UUIDProvider;
-
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -30,7 +28,10 @@ import org.bukkit.event.player.PlayerChatEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerLoginEvent;
+import org.bukkit.event.player.PlayerLoginEvent.Result;
 import org.bukkit.event.player.PlayerQuitEvent;
+
+import net.kaikk.mc.uuidprovider.UUIDProvider;
 
 @SuppressWarnings("deprecation")
 public class EventListener implements Listener {
@@ -42,6 +43,10 @@ public class EventListener implements Listener {
 
 	@EventHandler(priority=EventPriority.MONITOR)
 	public void onPlayerLogin(PlayerLoginEvent event) {
+		if (event.getResult()!=Result.ALLOWED) {
+			return;
+		}
+		
 		UUID uuid=UUIDProvider.get(event.getPlayer().getName());
 		if (uuid==null) {
 			instance.getLogger().severe(event.getPlayer().getName()+" UUID is null! I'll ignore this player.");
