@@ -65,7 +65,6 @@ public class EventListener implements Listener {
 	
 	@EventHandler
 	public void onPlayerQuit(PlayerQuitEvent event) {
-		System.out.println("PlayerQuitEvent: "+event.getPlayer().getName());
 		UUID uuid=UUIDProvider.get(event.getPlayer().getName());
 		if (uuid==null) {
 			instance.getLogger().severe(event.getPlayer().getName()+" UUID is null! I've ignored this player.");
