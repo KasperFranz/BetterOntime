@@ -19,23 +19,17 @@ class UpdateTask extends BukkitRunnable {
 		final List<String> commandsToRun = new ArrayList<String>();
 		final List<String> sqlCache = new ArrayList<String>(instance.ds.onlinePlayersStats.size());
 		
-		//System.out.println("UpdateTask: running. onlinePlayersStats size: "+instance.ds.onlinePlayersStats.size());
 		for(PlayerStats stats : instance.ds.onlinePlayersStats.values()) {
-			//System.out.println("UpdateTask: checking "+stats.getPlayerName());
-			
 			if (stats.isAFK()) {
 				stats.lastEpochTime=Utils.epoch();
-				//System.out.println("UpdateTask: "+stats.getPlayerName()+" is afk");
 				continue;
 			}
 			
 			int timeToAdd=Utils.epoch()-stats.lastEpochTime;
-			if (timeToAdd>(instance.config.saveDataInterval*2)+60) {
+			if (timeToAdd>(instance.config.saveDataInterval*10)+60) {
 				instance.getLogger().warning(stats.getPlayerName()+"'s timeToAdd ("+timeToAdd+" seconds) ignored and added just "+instance.config.saveDataInterval+" seconds. Is the server heavily overloaded?");
 				timeToAdd=instance.config.saveDataInterval;
 			}
-			
-			//System.out.println("UpdateTask: "+stats.getPlayerName()+" adding "+timeToAdd);
 			
 			// add the add time sql query to the cache
 			sqlCache.add(Utils.addTimeSql(stats.uuid, timeToAdd, instance.config.serverId, Utils.daysFromEpoch()));
@@ -45,9 +39,6 @@ class UpdateTask extends BukkitRunnable {
 
 			boolean executedGlobalCommand=false;
 			for(StoredCommand command : instance.ds.commands) {
-				/*if (stats.excludedCommands.contains(command)) {
-					System.out.println("command id "+command.id+" is excluded for "+stats.getPlayerName());
-				}*/
 				if (!stats.excludedCommands.contains(command) && isTimeToRunCommand(command, stats)) {
 					String commandToRun=command.command.replace("{p.name}", stats.getPlayerName()).replace("{p.uuid}", stats.uuid.toString());
 
@@ -106,7 +97,6 @@ class UpdateTask extends BukkitRunnable {
 				t++;
 			}
 		} else {
-			//System.out.println("IsTimeToRunId"+command.id+": "+stats.lastGlobalCheck+"<"+command.time+" && "+command.time+"<"+stats.global);
 			if (stats.lastGlobalCheck<command.time && command.time<stats.global) {
 				return true;
 			}
