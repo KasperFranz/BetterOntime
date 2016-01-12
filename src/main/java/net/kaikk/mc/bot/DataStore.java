@@ -320,7 +320,7 @@ class DataStore {
 				serverId=results.getInt(1);
 				playtime=results.getInt(3);
 				
-				if(results.getInt(2)>=daysFromEpoch-7) {
+				if(results.getInt(2)>daysFromEpoch-7) {
 					if (serverId==thisServerId) {
 						stats.localLast+=playtime;
 					}
