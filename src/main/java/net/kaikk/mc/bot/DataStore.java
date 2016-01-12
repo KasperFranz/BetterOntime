@@ -98,7 +98,7 @@ class DataStore {
 			instance.saveConfig();
 		}
 		
-		ResultSet results = statement.executeQuery("SELECT player, playtime FROM playtimes WHERE server = "+instance.config.serverId+" AND day!=0 AND day < "+(Utils.daysFromEpoch()-7));
+		ResultSet results = statement.executeQuery("SELECT player, playtime FROM playtimes WHERE server = "+instance.config.serverId+" AND day!=0 AND day < "+(Utils.daysFromEpoch()-instance.config.compactDataDays));
 		
 		HashMap<UUID, Integer> timesToMerge = new HashMap<UUID, Integer>();
 		while (results.next()) {
@@ -111,7 +111,7 @@ class DataStore {
 			timesToMerge.put(uuid, time+results.getInt(2));
 		}
 		
-		statement.executeUpdate("DELETE FROM playtimes WHERE server = "+instance.config.serverId+" AND day!=0 AND day < "+(Utils.daysFromEpoch()-7));
+		statement.executeUpdate("DELETE FROM playtimes WHERE server = "+instance.config.serverId+" AND day!=0 AND day < "+(Utils.daysFromEpoch()-instance.config.compactDataDays));
 		
 		if (!timesToMerge.isEmpty()) {
 			for (Entry<UUID, Integer> entry : timesToMerge.entrySet()) {
@@ -250,7 +250,6 @@ class DataStore {
 		PlayerStats stats = this.onlinePlayersStats.get(playerId);
 		if (stats==null) {
 			stats = new PlayerStats(playerId);
-			//this.onlinePlayersStats.put(playerId, stats);
 		}
 		
 		addTime(stats, time, server, day);
@@ -264,8 +263,6 @@ class DataStore {
 	synchronized void setTime(UUID playerId, int time) {
 		this.asyncUpdate("DELETE FROM playtimes WHERE player = "+Utils.UUIDtoHexString(playerId),
 						"INSERT INTO playtimes VALUES ("+Utils.UUIDtoHexString(playerId)+", 0, 0, "+time+")");
-		
-		//this.onlinePlayersStats.put(playerId, new PlayerStats(playerId, 0, 0, time, 0, time, 0, Utils.epoch()));
 	}
 	
 	/** Gets the player stats from the internal cache, or request  <br>

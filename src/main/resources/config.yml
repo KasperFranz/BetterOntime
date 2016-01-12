@@ -7,6 +7,9 @@ InactiveAfterMins: 5
 # The interval between data saves (on the MySQL databases), in seconds 
 SaveDataInterval: 60
 
+# Compact data after this number of days
+CompactDataDays: 7
+
 # Configuration for MySQL
 MySQL:
   Hostname: localhost

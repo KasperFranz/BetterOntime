@@ -3,7 +3,7 @@ package net.kaikk.mc.bot;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class Config {
-	public int serverId, inactivityMinutes, saveDataInterval;
+	public int serverId, inactivityMinutes, saveDataInterval, compactDataDays;
 	public String dbHostname, dbUsername, dbPassword, dbDatabase;
 	
 	Config(JavaPlugin instance) {
@@ -18,5 +18,7 @@ public class Config {
 		this.dbUsername=instance.getConfig().getString("MySQL.Username");
 		this.dbPassword=instance.getConfig().getString("MySQL.Password");
 		this.dbDatabase=instance.getConfig().getString("MySQL.Database");
+		
+		this.compactDataDays=instance.getConfig().getInt("CompactDataDays", 7);
 	}
 }
