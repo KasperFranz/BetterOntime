@@ -6,6 +6,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.TimeZone;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
@@ -17,12 +18,12 @@ public class Utils {
 	/** This static method will merge an array of strings from a specific index */
 	static String mergeStringArrayFromIndex(String[] arrayString, int i) {
 		StringBuilder sb = new StringBuilder();
-		
+
 		for(;i<arrayString.length;i++){
 			sb.append(arrayString[i]);
 			sb.append(' ');
 		}
-		
+
 		if (sb.length()!=0) {
 			sb.deleteCharAt(sb.length()-1);
 		}
@@ -30,30 +31,30 @@ public class Utils {
 	}
 
 	public static UUID toUUID(byte[] bytes) {
-	    if (bytes.length != 16) {
-	        throw new IllegalArgumentException();
-	    }
-	    int i = 0;
-	    long msl = 0;
-	    for (; i < 8; i++) {
-	        msl = (msl << 8) | (bytes[i] & 0xFF);
-	    }
-	    long lsl = 0;
-	    for (; i < 16; i++) {
-	        lsl = (lsl << 8) | (bytes[i] & 0xFF);
-	    }
-	    return new UUID(msl, lsl);
+		if (bytes.length != 16) {
+			throw new IllegalArgumentException();
+		}
+		int i = 0;
+		long msl = 0;
+		for (; i < 8; i++) {
+			msl = (msl << 8) | (bytes[i] & 0xFF);
+		}
+		long lsl = 0;
+		for (; i < 16; i++) {
+			lsl = (lsl << 8) | (bytes[i] & 0xFF);
+		}
+		return new UUID(msl, lsl);
 	}
-	
+
 	public static String UUIDtoHexString(UUID uuid) {
 		if (uuid==null) return "0x0";
 		return "0x"+org.apache.commons.lang.StringUtils.leftPad(Long.toHexString(uuid.getMostSignificantBits()), 16, "0")+org.apache.commons.lang.StringUtils.leftPad(Long.toHexString(uuid.getLeastSignificantBits()), 16, "0");
 	}
-	
+
 	public static int epoch() {
 		return (int) (System.currentTimeMillis()/1000);
 	}
-	
+
 	public static String timeToString(int time) {
 		ArrayList<String> strs = new ArrayList<String>();
 
@@ -98,7 +99,7 @@ public class Utils {
 
 		return mergeTimeStrings(strs);
 	}
-	
+
 	public static String mergeTimeStrings(ArrayList<String> strs) {
 		String string="";
 		for(String str : strs) {
@@ -137,43 +138,43 @@ public class Utils {
 			}
 		}
 	}
-	
+
 	public static int daysFromEpoch() {		
-		Calendar start = Calendar.getInstance();
-		Calendar now = Calendar.getInstance();
-		
+		Calendar start = Calendar.getInstance(TimeZone.getTimeZone("GMT"));
+		Calendar now = Calendar.getInstance(TimeZone.getTimeZone("GMT"));
+
 		start.setTimeInMillis(0);
-		
+
 		int days=0;
-		
+
 		while(start.get(Calendar.YEAR)<now.get(Calendar.YEAR)) {
 			days+=start.getActualMaximum(Calendar.DAY_OF_YEAR);
 			start.add(Calendar.YEAR, 1);
 		}
-		
+
 		days+=now.get(Calendar.DAY_OF_YEAR)-start.get(Calendar.DAY_OF_YEAR);
-		
+
 		return days;
 	}
-	
+
 	public static List<Player> getOnlinePlayersList() {
 		return Lists.newArrayList(Bukkit.getOnlinePlayers());
 	}
-	
+
 	public static <T extends Object> List<T> newList(T[] array) {
 		List<T> newList = new LinkedList<T>();
 		Collections.addAll(newList, array);
 		return newList;
 	}
-	
+
 	public static <T extends Object> List<T> newList(Collection<T> collection) {
 		return new LinkedList<T>(collection);
 	}
-	
+
 	public static boolean hasExplicitPermission(Player player, String permission) {
 		return player.isPermissionSet(permission) && player.hasPermission(permission);
 	}
-	
+
 	static String addTimeSql(UUID uuid, int time, int server, int day) {
 		return "INSERT INTO playtimes VALUES ("+Utils.UUIDtoHexString(uuid)+", "+server+", "+day+", "+time+") ON DUPLICATE KEY UPDATE playtime = playtime+"+time;
 	}
