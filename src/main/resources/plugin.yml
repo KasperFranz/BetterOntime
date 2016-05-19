@@ -2,7 +2,6 @@ name: ${name}
 main: ${package}.${name}
 version: ${version}
 author: KaiNoMood
-depend: [UUIDProvider]
 
 commands:
    betterontime:

@@ -25,7 +25,6 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
-import net.kaikk.mc.uuidprovider.UUIDProvider;
 
 class DataStore {
 	private BetterOntime instance;
@@ -275,16 +274,17 @@ class DataStore {
 		
 		return getPlayerStatsFromDB(uuid);
 	}
+        
 	
 	/** Warning: Use getPlayerStats(UUID) when possible as this requests the UUID to UUIDProvider<br>
 	 * Gets the player stats from the internal cache, or request  <br>
 	 * @return a PlayerStats object for this player, null if the player's UUID couldn't be retrieved */
-	public PlayerStats getPlayerStats(OfflinePlayer player) {
+	public PlayerStats getPlayerStats(Player player) {
 		if (player.isOnline()) {
 			return getOnlinePlayerStats(player.getPlayer());
 		}
 		
-		UUID uuid = UUIDProvider.get(player.getName());
+		UUID uuid = player.getUniqueId();
 		if (uuid==null) {
 			return null;
 		}
@@ -293,7 +293,7 @@ class DataStore {
 	
 	/** Warning: Use getOnlinePlayerStats(UUID) when possible as this requests the UUID to UUIDProvider */
 	public PlayerStats getOnlinePlayerStats(Player player) {
-		UUID uuid = UUIDProvider.get(player.getName());
+		UUID uuid = player.getUniqueId();
 		if (uuid==null) {
 			return null;
 		}
@@ -302,6 +302,10 @@ class DataStore {
 	
 	/** Returns players stats from local cache, available if they're online. */
 	public PlayerStats getOnlinePlayerStats(UUID playerId) {
+		return instance.ds.onlinePlayersStats.get(playerId);
+	}
+        
+        public PlayerStats getOnlinePlayerStats(UUID playerId) {
 		return instance.ds.onlinePlayersStats.get(playerId);
 	}
 	

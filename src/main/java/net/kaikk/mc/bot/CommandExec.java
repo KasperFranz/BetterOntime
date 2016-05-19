@@ -35,8 +35,6 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
-import net.kaikk.mc.uuidprovider.UUIDProvider;
-
 class CommandExec implements CommandExecutor {
 	private BetterOntime instance;
 	private ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -261,6 +259,13 @@ class CommandExec implements CommandExecutor {
 	}
 
 	private boolean add(final CommandSender sender, final String label, final String[] args) {
+            
+                if(1 == 1){
+                    // @TODO: It should be possible add to others time.
+                    sender.sendMessage("Only Possible to check yourself currently.");
+                    return false;
+                }
+                
 		if (!sender.hasPermission("betterontime.manage")) {
 			sender.sendMessage("You're not allowed to run this command.");
 			return false;
@@ -277,7 +282,7 @@ class CommandExec implements CommandExecutor {
 			return false;
 		}
 
-		UUID uuid = UUIDProvider.get(args[1]);
+		UUID uuid = null; // UUIDProvider.get(args[1]);
 		if (uuid==null) {
 			sender.sendMessage("Invalid player name.");
 			return false;
@@ -289,6 +294,13 @@ class CommandExec implements CommandExecutor {
 	}
 
 	private boolean set(final CommandSender sender, final String label, final String[] args) {
+            				
+                if(1 == 1){
+                    // @TODO: It should be possible set others time.
+                    sender.sendMessage("Only Possible to check yourself currently.");
+                    return false;
+                }
+                                
 		if (!sender.hasPermission("betterontime.manage")) {
 			sender.sendMessage("You're not allowed to run this command.");
 			return false;
@@ -305,7 +317,7 @@ class CommandExec implements CommandExecutor {
 			return false;
 		}
 
-		UUID uuid = UUIDProvider.get(args[1]);
+		UUID uuid = null; //UUIDProvider.get(args[1]);
 		if (uuid==null) {
 			sender.sendMessage("Invalid player name.");
 			return false;
@@ -326,6 +338,7 @@ class CommandExec implements CommandExecutor {
 
 	private boolean stats(final CommandSender sender, final String label, final String[] args) {
 		final String playerToCheck;
+                final UUID uuidToCheck;
 		if (args.length==1 && !sender.getName().equalsIgnoreCase(args[0])) {
 			if (!sender.hasPermission("betterontime.others")) {
 				sender.sendMessage("You're not allowed to run this command.");
@@ -333,8 +346,9 @@ class CommandExec implements CommandExecutor {
 			}
 			
 			playerToCheck = args[0];
+                        uuidToCheck = null;
 		} else {
-			if (!(sender instanceof OfflinePlayer)) {
+			if (!(sender instanceof Player)) {
 				sender.sendMessage("Usage: /"+label+" [PlayerName]");
 				return false;
 			}
@@ -343,20 +357,25 @@ class CommandExec implements CommandExecutor {
 				return false;
 			}
 			
-			playerToCheck = sender.getName();
+			uuidToCheck = ((Player) sender).getUniqueId();
+                        playerToCheck = sender.getName();
 		}
 		
 		executor.execute(new Runnable() {
 			@Override
 			public void run() {
-				final UUID uuid = UUIDProvider.get(playerToCheck);
-				if (uuid == null) {
+				if(uuidToCheck == null){
+                                    // @TODO: It should be possible to check others.
+                                    sender.sendMessage("Only Possible to check yourself currently.");
+                                    return;
+                                }
+				if (uuidToCheck == null) {
 					sender.sendMessage("Invalid player name: "+playerToCheck);
 					return;
 				}
 				
 				final String message;
-				PlayerStats stats = instance.ds.getPlayerStats(uuid);
+				PlayerStats stats = instance.ds.getPlayerStats(uuidToCheck);
 				if (stats==null || stats.global==0) {
 					message = "No statistics found for this player.";
 				} else {

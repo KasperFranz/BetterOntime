@@ -3,7 +3,6 @@ A bukkit plugin that tracks and runs console commands at certain player's playti
 
 All my plugin's builds can be downloaded from http://kaikk.net/mc/#bukkit
 
-This plugin needs UUIDProvider: https://github.com/KaiKikuchi/UUIDProvider
 This plugin needs a database MySQL.
 
 ###Commands

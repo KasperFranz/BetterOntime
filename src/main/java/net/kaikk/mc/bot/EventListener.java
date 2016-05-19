@@ -31,9 +31,8 @@ import org.bukkit.event.player.PlayerLoginEvent;
 import org.bukkit.event.player.PlayerLoginEvent.Result;
 import org.bukkit.event.player.PlayerQuitEvent;
 
-import net.kaikk.mc.uuidprovider.UUIDProvider;
 
-@SuppressWarnings("deprecation")
+
 public class EventListener implements Listener {
 	BetterOntime instance;
 	
@@ -47,7 +46,7 @@ public class EventListener implements Listener {
 			return;
 		}
 		
-		UUID uuid=UUIDProvider.get(event.getPlayer().getName());
+		UUID uuid= event.getPlayer().getUniqueId();
 		if (uuid==null) {
 			instance.getLogger().severe(event.getPlayer().getName()+" UUID is null! I'll ignore this player.");
 			return;
@@ -65,7 +64,7 @@ public class EventListener implements Listener {
 	
 	@EventHandler
 	public void onPlayerQuit(PlayerQuitEvent event) {
-		UUID uuid=UUIDProvider.get(event.getPlayer().getName());
+		UUID uuid = event.getPlayer().getUniqueId();
 		if (uuid==null) {
 			instance.getLogger().severe(event.getPlayer().getName()+" UUID is null! I've ignored this player.");
 			return;
