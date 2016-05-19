@@ -305,13 +305,56 @@ class DataStore {
 		return instance.ds.onlinePlayersStats.get(playerId);
 	}
         
-        public PlayerStats getOnlinePlayerStats(UUID playerId) {
-		return instance.ds.onlinePlayersStats.get(playerId);
-	}
 	
 	/** Retrieve player stats from the database */
 	synchronized public PlayerStats getPlayerStatsFromDB(UUID playerId) {
 		PlayerStats stats = new PlayerStats(playerId);
+		
+		try {
+			Statement statement = this.statement();
+			
+			ResultSet results = this.query(statement, "SELECT server, day, playtime FROM playtimes WHERE player = "+Utils.UUIDtoHexString(playerId));
+			
+			int daysFromEpoch=Utils.daysFromEpoch(), thisServerId=instance.config.serverId, playtime, serverId;
+			
+			while(results.next()) {
+				serverId=results.getInt(1);
+				playtime=results.getInt(3);
+				
+				if(results.getInt(2)>daysFromEpoch-7) {
+					if (serverId==thisServerId) {
+						stats.localLast+=playtime;
+					}
+					stats.globalLast+=playtime;
+				}
+				
+				if (serverId==thisServerId) {
+					stats.local+=playtime;
+				}
+				stats.global+=playtime;
+			}
+			
+			results = this.query(statement, "SELECT lastglobalplaytime FROM playerinfo WHERE player = "+Utils.UUIDtoHexString(playerId)+" AND server="+thisServerId);
+			
+			if(results.next()) {
+				stats.lastGlobalCheck=results.getInt(1);
+			}
+			
+			stats.lastLocalCheck=stats.local;
+			
+			stats.lastEpochTime=Utils.epoch();
+			
+			return stats;
+		} catch (SQLException e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+        
+        
+	/** Retrieve player stats from the database */
+	synchronized public PlayerStats getPlayerStatsFromDB(Player player) {
+		PlayerStats stats = new PlayerStats(player.getUniqueId());
 		
 		try {
 			Statement statement = this.statement();
